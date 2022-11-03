@@ -1,5 +1,17 @@
-import numpy as np
+import os.path
+from os import listdir
+from os.path import isfile
+from dataclasses import dataclass
 from enum import Enum
+from typing import List
+
+import numpy as np
+import pandas as pd
+import sklearn.utils.validation
+from scipy.spatial.distance import pdist
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier, NearestNeighbors
+from sklearn.preprocessing import OrdinalEncoder
 
 
 class DataType(Enum):
@@ -9,164 +21,288 @@ class DataType(Enum):
     RATIO_SCALE = 3
 
 
+@dataclass
+class Dataset:
+    name: str
+    task: str
+    metric: str
+
+
+@dataclass
+class Data:
+    cols_type_maping = {
+        "bin_sym": DataType.BINARY_SYMMETRIC,
+        "bin_asym": DataType.BINARY_ASYMMETRIC,
+        "cat_nom": DataType.CATEGORICAL_NOMINAL,
+        "ratio": DataType.RATIO_SCALE,
+        "NULL": None,
+    }
+    data: dict
+    cols_type: dict
+
+
 class GowerMetric:
-    def __init__(self, data_type: np.array):
-        self.__data_type = data_type        # initialize with np.array of column data types
-        self.__iqrs = []                    # iqr values in .__ratio_scale()
-        self.__h = []                       # h values in .__ratio_scale()
-        self.__data_fitted = False          # flag for running .fit()
-        self.__sigma_sum = 0                # counter for existing values in vector
+    def __init__(self, dtypes: np.array, ratio_scale_normalization="range"):
+        self.dtypes = dtypes  # initialize with np.array of column data types
+        self.ranges_: List  # values of ranges in ._ratio_scale() (iqr or traditional range)
+        self.h_: List  # h values in ._ratio_scale()
+        self.n_features_in_: int
+        self._sigma_sum = 0  # counter for existing values in vector
+        self.ratio_scale_normalization: str = ratio_scale_normalization
+        self._similarities_map = {
+            DataType.BINARY_SYMMETRIC: self._bin_sym,
+            DataType.BINARY_ASYMMETRIC: self._bin_asym,
+            DataType.CATEGORICAL_NOMINAL: self._cat_nom,
+            DataType.RATIO_SCALE: self._ratio_scale,
+        }
 
-    def __bin_sym(self, value_1, value_2) -> float:
-        if value_1 is None or value_2 is None:
-            return 0.0
+    def __call__(
+        self,
+        vector_1: np.array,
+        vector_2: np.array,
+    ):
+        sklearn.utils.validation.check_is_fitted(self)
 
-        self.__add_sigma()
-        return 1.0 if value_1 == value_2 else 0.0
+        if self.n_features_in_ != len(vector_1) | len(vector_2):
+            print("Vector sizes don't match!")
+            return -1
 
-    def __bin_asym(self, value_1, value_2) -> float:
-        if value_1 is None or value_2 is None:
-            return 0.0
+        dist_func = lambda similarity, a, b: 1 - similarity(a, b)
+        dist_func_ratio = lambda similarity, a, b, r, h: 1 - similarity(
+            a, b, r, h
+        )
+        distances = [
+            dist_func(
+                self._similarities_map[self.dtypes[i]],
+                vector_1[i],
+                vector_2[i],
+            )
+            if self.dtypes[i] != DataType.RATIO_SCALE
+            else dist_func_ratio(
+                self._similarities_map[self.dtypes[i]],
+                vector_1[i],
+                vector_2[i],
+                self.ranges_[i],
+                self.h_[i],
+            )
+            for i in range(self.n_features_in_)
+        ]
+        distance = np.sum(distances)
 
-        if value_1 == value_2 and value_1 == 1:
-            self.__add_sigma()
+        distance /= self._sigma_sum
+        self._reset_sigma()
+
+        return distance
+
+    def fit(self, X):
+        self.ranges_ = [0 for _ in range(self.dtypes.size)]
+        self.h_ = [0 for _ in range(self.dtypes.size)]
+        self.n_features_in_ = self.dtypes.size
+
+        for i in range(self.dtypes.size):
+            if self.dtypes[i] == DataType.RATIO_SCALE:
+                column = X[:, i]
+
+                if self.ratio_scale_normalization == "iqr":
+                    # IQR (g_t) - Interquartile Range
+                    q1, q3 = np.percentile(column, [25, 75])
+                    self.ranges_[i] = q3 - q1
+                elif self.ratio_scale_normalization == "range":
+                    # Traditional range of values
+                    self.ranges_[i] = np.ptp(column, axis=0)
+                else:
+                    print(
+                        "GowerMetric - Ratio scale has wrong type of normalization!"
+                    )
+                    raise ValueError
+
+                # h_t - bandwidth in the kernel density estimation (Marcello D’Orazio - p. 9)
+                c = 1.06
+
+                s = np.std(column)
+                n = X[:, i].size
+                self.h_[i] = (
+                    c / n ** (1 / 5) * np.min([s, self.ranges_[i] / 1.34])
+                )
+        # print('Gower\'s Metric fit')
+        # print(f'IQRS: {self.ranges_}')
+        # print(f'h: {self.h_}')
+
+    def _bin_sym(self, value_1, value_2) -> float:
+        self._add_sigma()
+        return 1.0 if np.isclose(value_1, value_2) else 0.0
+
+    def _bin_asym(self, value_1, value_2) -> float:
+        if np.isclose(value_1, value_2) and np.isclose(value_1, 1.0):
+            self._add_sigma()
             return 1.0
         else:
             return 0.0
 
-    def __cat_nom(self, value_1, value_2) -> float:
-        if value_1 is None or value_2 is None:
-            return 0.0
+    def _cat_nom(self, value_1, value_2) -> float:
+        self._add_sigma()
+        return 1.0 if np.isclose(value_1, value_2) else 0.0
 
-        self.__add_sigma()
-        return 1.0 if value_1 == value_2 else 0.0
-
-    def __ratio_scale(self, value_1, value_2, iqr, h) -> float:
-        if value_1 is None or value_2 is None:
-            return 0.0
-
-        self.__add_sigma()
+    def _ratio_scale(self, value_1, value_2, val_range, h) -> float:
+        self._add_sigma()
         absolute = np.abs(value_1 - value_2)
-
-        if absolute >= iqr:
+        if absolute >= val_range:
             return 0.0
-
         elif absolute <= h:
             return 1.0
+        else:
+            return 1.0 - absolute / val_range
 
-        return 1.0 - absolute / iqr
+    def _add_sigma(self):
+        self._sigma_sum += 1
 
-    def __add_sigma(self):
-        self.__sigma_sum += 1
+    def _reset_sigma(self):
+        self._sigma_sum = 0
 
-    def __reset_sigma(self):
-        self.__sigma_sum = 0
 
-    def fit(self, x):
-        for i in range(self.__data_type.size):
-            if self.__data_type[i] == DataType.RATIO_SCALE:
+def bin_dist(vector_1: np.ndarray, vector_2: np.ndarray):
+    # bool array for not-null values
+    non_null_map_1 = vector_1 != -1
+    non_null_map_2 = vector_2 != -1
 
-                # IQR (g_t) - Interquartile Range
-                q1, q3 = np.percentile(x[:, i].astype(np.int32), [25, 75])
-                self.__iqrs.append(q3 - q1)
+    # vec_1 and vec_2 with only not-null values
+    non_null_1 = vector_1[non_null_map_1 & non_null_map_2]
+    non_null_2 = vector_2[non_null_map_1 & non_null_map_2]
 
-                # h_t - bandwidth in the kernel density estimation (Marcello D’Orazio - p. 9)
-                if np.any(x[:, i].astype(np.int32) < 0):
-                    c = 0.9
-                else:
-                    c = 1.06
+    # count null values
+    null_count = (~non_null_map_1 | ~non_null_map_2).sum()
 
-                s = np.std(x[:, i].astype(np.int32))
-                n = x[:, i].size
-                self.__h.append(c / n ** (1/5) * np.min([s, self.__iqrs[-1] / 1.34]))
+    # return sum of dissimilarities between vec_1 and vec_2 + number of unique null fields
+    return (
+        (~np.isclose(non_null_1, non_null_2)).sum() + null_count
+    ) / vector_1.size
 
-        self.__data_fitted = True
-        print("IQRS:", self.__iqrs)
-        print("h:", self.__h)
 
-    def __call__(
-        self, vector_1: np.array, vector_2: np.array,
-    ):
-        if len(vector_1) != len(vector_2):
-            print("Vector sizes don't match!")
-            return -1
+# Simple function for calculating dissimilarity matrix
+def make_matrix(data_frame: np.ndarray, metric) -> np.array:
+    return pdist(data_frame, metric)
 
-        if not self.__data_fitted:
-            print("Use GowerMetric.fit(x) first to initialize scales for data!")
-            return -1
 
-        d = 0
-        ratios_index = 0
+def knn_test(dataset: Dataset, data: Data):
+    df = data.data[dataset.name][:500]
+    df = fill_na(df)
 
-        for i in range(len(vector_1)):
+    gower = GowerMetric(data.cols_type[dataset.name], "iqr")
 
-            if self.__data_type[i] == DataType.BINARY_SYMMETRIC:
-                d += 1 - self.__bin_sym(vector_1[i], vector_2[i])
-            elif self.__data_type[i] == DataType.BINARY_ASYMMETRIC:
-                d += 1 - self.__bin_asym(vector_1[i], vector_2[i])
-            elif self.__data_type[i] == DataType.CATEGORICAL_NOMINAL:
-                d += 1 - self.__cat_nom(vector_1[i], vector_2[i])
-            elif self.__data_type[i] == DataType.RATIO_SCALE:
-                d += 1 - self.__ratio_scale(
-                    float(vector_1[i]), float(vector_2[i]), self.__iqrs[ratios_index], self.__h[ratios_index]
-                )
-                ratios_index += 1
-            else:
-                print(f"Wrong data type! - {self.__data_type[i]}")
+    if dataset.metric == "gower":
+        metric_func = gower
+    elif dataset.metric == "euclidean":
+        metric_func = "euclidean"
+    elif dataset.metric == "manhattan":
+        metric_func = "manhattan"
+    else:
+        metric_func = bin_dist
 
-        d /= self.__sigma_sum
-        self.__reset_sigma()
+    print(
+        f"----------------- KNN Test using {dataset.metric} metric -----------------"
+    )
+    if dataset.task == "bin" or dataset.task == "multivar":
+        enc = OrdinalEncoder()
+        enc.set_params(encoded_missing_value=-1)
 
-        return d
+        cat_nom_cols = [
+            i
+            for i in range(len(gower.dtypes))
+            if gower.dtypes[i] == DataType.CATEGORICAL_NOMINAL
+        ] + [len(gower.dtypes)]
+        fit_df = df[:, cat_nom_cols]
 
-    # Simple function for calculating dissimilarity matrix
-    def make_matrix(self, data_frame: np.ndarray) -> np.array:
-        n = len(data_frame)
-        M = [[0.0 for _ in range(n)] for _ in range(n)]
+        enc.fit(fit_df)
+        fit_df = enc.transform(fit_df)
+        df[:, cat_nom_cols] = fit_df
 
-        for i in range(n):
-            for j in range(i):
-                if i != j:
-                    M[i][j] = self.__call__(data_frame[i], data_frame[j])
-                    M[j][i] = M[i][j]
+        y = df[:, -1]
+        df = df[:, :-1]
 
-        return np.array(M, dtype=np.float32)
+        df = np.ndarray.astype(df, dtype=np.float64)
+        y = np.ndarray.astype(y, dtype=np.float64)
+
+        train_set, test_set, y_train_set, y_test_set = train_test_split(
+            df, y, test_size=0.3
+        )
+
+        if dataset.metric == "gower":
+            gower.fit(train_set)
+
+        knn = KNeighborsClassifier(n_neighbors=5, metric=metric_func)
+        knn.fit(train_set, y_train_set)
+
+        print(f"KNN score: {knn.score(test_set, y_test_set)}")
+
+    elif dataset.task == "reg":
+        train_set, test_set = train_test_split(df, test_size=0.3)
+
+        gower.fit(train_set)
+
+        knn = NearestNeighbors(n_neighbors=5, metric=metric_func)
+        knn.fit(train_set)
+        print(knn.kneighbors(test_set, 5, False))
+
+    elif dataset.task == "cluster":
+        y = df[:, -1]
+        df = df[:, :-1]
+        train_set, test_set, y_train_set, y_test_set = train_test_split(
+            df, y, test_size=0.2
+        )
+        # TODO
+
+    else:
+        print("Wrong task!")
+    print(
+        "--------------------------------------------------------------------\n"
+    )
+
+
+def load_dataset(dataset_name: str):
+    loaded_data = np.loadtxt(dataset_name, delimiter=",", dtype=object)
+    # loaded_data = pd.read_csv(dataset_name, delimiter=',')
+    cols_type = np.loadtxt(
+        dataset_name[:-4] + "_cols_type.csv", delimiter=",", dtype=object
+    )
+    cols_type = np.array([Data.cols_type_maping[k] for k in cols_type])
+    loaded_data = loaded_data[1:, :]
+    return loaded_data, cols_type
+
+
+def fill_na(data: np.array):
+    data[data == ""] = -1
+    return data
+
+
+def fill_nan(data: np.array):
+    data[np.isnan(data)] = -1
+    return data
+
+
+def load_sets():
+    D_data = {}
+    D_cols_type = {}
+
+    for file in listdir(os.path.abspath("datasets")):
+        if (
+            isfile(os.path.abspath("datasets") + "/" + file)
+            and "_cols_type" not in file
+        ):
+            D_data[file[:-4]], D_cols_type[file[:-4]] = load_dataset(
+                os.path.abspath("datasets") + "/" + file
+            )
+    D = Data(D_data, D_cols_type)
+    return D
 
 
 if __name__ == "__main__":
-    #   gender / age / grade
-    data = np.array(
-        [
-            ["F", 15, 5],
-            ["F", 36, 3],
-            ["F", 58, 2],
-            ["F", 78, 2],
-            ["F", 100, 4],
-            ["M", 15, 3],
-            ["M", 36, 2],
-            ["M", 58, 1],
-            ["M", 78, 2],
-            ["M", 100, 5],
-        ]
-    )
 
-    types = np.array(
-        [DataType.CATEGORICAL_NOMINAL, DataType.RATIO_SCALE, DataType.RATIO_SCALE]
-    )
-    gower = GowerMetric(types)
-    gower.fit(data)
+    D = load_sets()
 
-    # ------------------ Testowanie ------------------
+    print(f"Loaded sets: {list(D.data.keys())}")
 
-    # Macierz odległości
-    gower_matrix = gower.make_matrix(data)
+    ds1 = Dataset("adult", "bin", "gower")
+    ds2 = Dataset("adult", "bin", "bin")
 
-    print("\t\t\t", *data)
-    for e, lane in enumerate(gower_matrix):
-        print(data[e], end=' ')
-        for val in lane:
-            print('{:.4f}'.format(val), end=',\t\t ')
-        print("")
-
-    # Pojedyncza odległość
-    # print(gower(data[2], data[8]))
+    knn_test(ds1, D)
+    knn_test(ds2, D)
