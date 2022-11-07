@@ -6,9 +6,9 @@ from enum import Enum
 from typing import List
 
 import numpy as np
-import pandas as pd
 import sklearn.utils.validation
 from scipy.spatial.distance import pdist
+from scipy.cluster.hierarchy import linkage, dendrogram
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier, NearestNeighbors
 from sklearn.preprocessing import OrdinalEncoder
@@ -39,6 +39,7 @@ class Data:
     }
     data: dict
     cols_type: dict
+    labels: dict
 
 
 class GowerMetric:
@@ -164,7 +165,7 @@ def bin_dist(vector_1: np.ndarray, vector_2: np.ndarray):
     # bool array for not-null values
     non_null_map_1 = vector_1 != -1
     non_null_map_2 = vector_2 != -1
-    non_null_map = np.logical_and(non_null_map_1, non_null_map_2)
+    non_null_map = non_null_map_1 & non_null_map_2
 
     # vec_1 and vec_2 with only not-null values
     non_null_1 = vector_1[non_null_map]
@@ -185,8 +186,20 @@ def make_matrix(data_frame: np.ndarray, metric) -> np.array:
     return pdist(data_frame, metric)
 
 
-def knn_test(dataset: Dataset, data: Data):
-    df = data.data[dataset.name][:2000]
+def cpcc(x, t):
+    x_ = np.average(x)
+    t_ = np.average(t)
+
+    return np.sum((x - x_) * (t - t_)) / np.sqrt(
+        np.sum(np.power(x - x_, 2)) * np.sum(np.power(t - t_, 2))
+    )
+
+
+def knn_test(dataset: Dataset, data: Data, number_of_records: int = None):
+    if number_of_records is None:
+        number_of_records = len(data.data[dataset.name])
+
+    df = np.copy(data.data[dataset.name][:number_of_records])
     df = fill_na(df)
 
     gower = GowerMetric(data.cols_type[dataset.name], "iqr")
@@ -201,7 +214,7 @@ def knn_test(dataset: Dataset, data: Data):
         metric_func = bin_dist
 
     print(
-        f"----------------- KNN Test using {dataset.metric} metric -----------------"
+        f"----------------- Test using {dataset.metric} metric -----------------"
     )
     if dataset.task == "bin" or dataset.task == "multivar":
         enc = OrdinalEncoder()
@@ -234,7 +247,10 @@ def knn_test(dataset: Dataset, data: Data):
         knn = KNeighborsClassifier(n_neighbors=5, metric=metric_func)
         knn.fit(train_set, y_train_set)
 
-        print(f"KNN score: {knn.score(test_set, y_test_set)}")
+        score = knn.score(test_set, y_test_set)
+
+        print(f"KNN score: {score}")
+        return score
 
     elif dataset.task == "reg":
         train_set, test_set = train_test_split(df, test_size=0.3)
@@ -246,12 +262,47 @@ def knn_test(dataset: Dataset, data: Data):
         print(knn.kneighbors(test_set, 5, False))
 
     elif dataset.task == "cluster":
-        y = df[:, -1]
-        df = df[:, :-1]
-        train_set, test_set, y_train_set, y_test_set = train_test_split(
-            df, y, test_size=0.2
+        enc = OrdinalEncoder()
+        enc.set_params(encoded_missing_value=-1)
+
+        cat_nom_cols = [
+            i
+            for i in range(len(gower.dtypes))
+            if gower.dtypes[i] == DataType.CATEGORICAL_NOMINAL
+        ] + [len(gower.dtypes)]
+        fit_df = df[:, cat_nom_cols]
+
+        enc.fit(fit_df)
+        fit_df = enc.transform(fit_df)
+        df[:, cat_nom_cols] = fit_df
+
+        df = np.ndarray.astype(df, dtype=np.float64)
+
+        if dataset.metric == "gower":
+            gower.fit(df)
+
+        # Hierarchical Clustering and dendogram (without plotting)
+        Z = linkage(df, method="single", metric=metric_func)
+        dn = dendrogram(Z, no_plot=True)
+        t_dn = np.array([0] + [p[1] for p in dn["dcoord"]])
+
+        # distances between elements using given metric function
+        dist_x = np.zeros((number_of_records, number_of_records))
+        row, col = np.triu_indices(number_of_records, 1)
+        dist_x[row, col] = pdist(df, metric=metric_func)
+        dist_x = dist_x.flatten()
+
+        # distances between elements on a dendogram
+        dist_t = t_dn.reshape((number_of_records, 1)) - t_dn.reshape(
+            (1, number_of_records)
         )
-        # TODO
+        dist_t = np.triu(dist_t)
+        dist_t = dist_t.flatten()
+        dist_t = np.absolute(dist_t)
+
+        # print(dist_x.shape, dist_t.shape)
+
+        print(f"CPCC: {cpcc(dist_x, dist_t)}")
 
     else:
         print("Wrong task!")
@@ -267,8 +318,9 @@ def load_dataset(dataset_name: str):
         dataset_name[:-4] + "_cols_type.csv", delimiter=",", dtype=object
     )
     cols_type = np.array([Data.cols_type_maping[k] for k in cols_type])
+    labels = loaded_data[1, :]
     loaded_data = loaded_data[1:, :]
-    return loaded_data, cols_type
+    return loaded_data, cols_type, labels
 
 
 def fill_na(data: np.array):
@@ -284,16 +336,19 @@ def fill_nan(data: np.array):
 def load_sets():
     D_data = {}
     D_cols_type = {}
+    D_labels = {}
 
     for file in listdir(os.path.abspath("datasets")):
         if (
             isfile(os.path.abspath("datasets") + "/" + file)
             and "_cols_type" not in file
         ):
-            D_data[file[:-4]], D_cols_type[file[:-4]] = load_dataset(
-                os.path.abspath("datasets") + "/" + file
-            )
-    D = Data(D_data, D_cols_type)
+            (
+                D_data[file[:-4]],
+                D_cols_type[file[:-4]],
+                D_labels[file[:-4]],
+            ) = load_dataset(os.path.abspath("datasets") + "/" + file)
+    D = Data(D_data, D_cols_type, D_labels)
     return D
 
 
@@ -303,8 +358,12 @@ if __name__ == "__main__":
 
     print(f"Loaded sets: {list(D.data.keys())}")
 
-    ds1 = Dataset("adult", "bin", "gower")
-    ds2 = Dataset("adult", "bin", "bin")
+    ds1 = Dataset("adult", "cluster", "gower")
+    ds2 = Dataset("adult", "cluster", "bin")
 
-    knn_test(ds1, D)
-    knn_test(ds2, D)
+    n_s = [50, 100, 200, 300, 500, 1000]
+
+    for n in n_s:
+        print(f"{n}:")
+        knn_test(ds1, D, n)
+        knn_test(ds2, D, n)
