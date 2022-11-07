@@ -164,18 +164,20 @@ def bin_dist(vector_1: np.ndarray, vector_2: np.ndarray):
     # bool array for not-null values
     non_null_map_1 = vector_1 != -1
     non_null_map_2 = vector_2 != -1
+    non_null_map = np.logical_and(non_null_map_1, non_null_map_2)
 
     # vec_1 and vec_2 with only not-null values
-    non_null_1 = vector_1[non_null_map_1 & non_null_map_2]
-    non_null_2 = vector_2[non_null_map_1 & non_null_map_2]
+    non_null_1 = vector_1[non_null_map]
+    non_null_2 = vector_2[non_null_map]
 
     # count null values
     null_count = (~non_null_map_1 | ~non_null_map_2).sum()
 
     # return sum of dissimilarities between vec_1 and vec_2 + number of unique null fields
-    return (
-        (~np.isclose(non_null_1, non_null_2)).sum() + null_count
-    ) / vector_1.size
+
+    return ((~np.isclose(non_null_1, non_null_2)).sum() + null_count) / len(
+        vector_1
+    )
 
 
 # Simple function for calculating dissimilarity matrix
@@ -184,7 +186,7 @@ def make_matrix(data_frame: np.ndarray, metric) -> np.array:
 
 
 def knn_test(dataset: Dataset, data: Data):
-    df = data.data[dataset.name][:500]
+    df = data.data[dataset.name][:2000]
     df = fill_na(df)
 
     gower = GowerMetric(data.cols_type[dataset.name], "iqr")
