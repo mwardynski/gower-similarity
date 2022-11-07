@@ -7,8 +7,8 @@ from typing import List
 
 import numpy as np
 import sklearn.utils.validation
-from scipy.spatial.distance import pdist
-from scipy.cluster.hierarchy import linkage, dendrogram
+from scipy.spatial.distance import pdist, squareform
+from scipy.cluster.hierarchy import linkage, dendrogram, cophenet, single
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier, NearestNeighbors
 from sklearn.preprocessing import OrdinalEncoder
@@ -66,6 +66,7 @@ class GowerMetric:
 
         if self.n_features_in_ != len(vector_1) | len(vector_2):
             print("Vector sizes don't match!")
+            print(self.n_features_in_, len(vector_1), len(vector_2))
             return -1
 
         dist_func = lambda similarity, a, b: 1 - similarity(a, b)
@@ -195,6 +196,15 @@ def cpcc(x, t):
     )
 
 
+def ioa(X, O, metric_func):
+    Z = single(pdist(X, metric=metric_func))
+    P = np.triu(squareform(cophenet(Z)))
+    O_ = np.average(O)
+    return 1 - np.sum(np.power(P - O, 2)) / np.sum(
+        np.power(np.absolute(P - O_) + np.absolute(O - O_), 2)
+    )
+
+
 def knn_test(dataset: Dataset, data: Data, number_of_records: int = None):
     if number_of_records is None:
         number_of_records = len(data.data[dataset.name])
@@ -276,6 +286,9 @@ def knn_test(dataset: Dataset, data: Data, number_of_records: int = None):
         fit_df = enc.transform(fit_df)
         df[:, cat_nom_cols] = fit_df
 
+        y = df[:, -1]
+        df = df[:, :-1]
+
         df = np.ndarray.astype(df, dtype=np.float64)
 
         if dataset.metric == "gower":
@@ -290,19 +303,20 @@ def knn_test(dataset: Dataset, data: Data, number_of_records: int = None):
         dist_x = np.zeros((number_of_records, number_of_records))
         row, col = np.triu_indices(number_of_records, 1)
         dist_x[row, col] = pdist(df, metric=metric_func)
-        dist_x = dist_x.flatten()
+        # dist_x = dist_x.flatten()
 
         # distances between elements on a dendogram
         dist_t = t_dn.reshape((number_of_records, 1)) - t_dn.reshape(
             (1, number_of_records)
         )
         dist_t = np.triu(dist_t)
-        dist_t = dist_t.flatten()
+        # dist_t = dist_t.flatten()
         dist_t = np.absolute(dist_t)
 
         # print(dist_x.shape, dist_t.shape)
 
         print(f"CPCC: {cpcc(dist_x, dist_t)}")
+        print(f"IoA: {ioa(df, dist_x, metric_func)}")
 
     else:
         print("Wrong task!")
