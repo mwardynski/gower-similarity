@@ -176,7 +176,6 @@ def bin_dist(vector_1: np.ndarray, vector_2: np.ndarray):
     null_count = (~non_null_map_1 | ~non_null_map_2).sum()
 
     # return sum of dissimilarities between vec_1 and vec_2 + number of unique null fields
-
     return ((~np.isclose(non_null_1, non_null_2)).sum() + null_count) / len(
         vector_1
     )
@@ -199,6 +198,7 @@ def cpcc(x, t):
 def ioa(X, O, metric_func):
     Z = single(pdist(X, metric=metric_func))
     P = np.triu(squareform(cophenet(Z)))
+
     O_ = np.average(O)
     return 1 - np.sum(np.power(P - O, 2)) / np.sum(
         np.power(np.absolute(P - O_) + np.absolute(O - O_), 2)
@@ -216,12 +216,10 @@ def knn_test(dataset: Dataset, data: Data, number_of_records: int = None):
 
     if dataset.metric == "gower":
         metric_func = gower
-    elif dataset.metric == "euclidean":
-        metric_func = "euclidean"
-    elif dataset.metric == "manhattan":
-        metric_func = "manhattan"
-    else:
+    elif dataset.metric == "bin":
         metric_func = bin_dist
+    else:
+        metric_func = dataset.metric
 
     print(
         f"----------------- Test using {dataset.metric} metric -----------------"
@@ -248,7 +246,7 @@ def knn_test(dataset: Dataset, data: Data, number_of_records: int = None):
         y = np.ndarray.astype(y, dtype=np.float64)
 
         train_set, test_set, y_train_set, y_test_set = train_test_split(
-            df, y, test_size=0.3
+            df, y, test_size=0.2
         )
 
         if dataset.metric == "gower":
@@ -275,6 +273,7 @@ def knn_test(dataset: Dataset, data: Data, number_of_records: int = None):
         enc = OrdinalEncoder()
         enc.set_params(encoded_missing_value=-1)
 
+        # Categorical Nominal columns
         cat_nom_cols = [
             i
             for i in range(len(gower.dtypes))
@@ -286,7 +285,6 @@ def knn_test(dataset: Dataset, data: Data, number_of_records: int = None):
         fit_df = enc.transform(fit_df)
         df[:, cat_nom_cols] = fit_df
 
-        y = df[:, -1]
         df = df[:, :-1]
 
         df = np.ndarray.astype(df, dtype=np.float64)
@@ -303,20 +301,19 @@ def knn_test(dataset: Dataset, data: Data, number_of_records: int = None):
         dist_x = np.zeros((number_of_records, number_of_records))
         row, col = np.triu_indices(number_of_records, 1)
         dist_x[row, col] = pdist(df, metric=metric_func)
-        # dist_x = dist_x.flatten()
 
         # distances between elements on a dendogram
         dist_t = t_dn.reshape((number_of_records, 1)) - t_dn.reshape(
             (1, number_of_records)
         )
         dist_t = np.triu(dist_t)
-        # dist_t = dist_t.flatten()
         dist_t = np.absolute(dist_t)
 
-        # print(dist_x.shape, dist_t.shape)
-
-        print(f"CPCC: {cpcc(dist_x, dist_t)}")
-        print(f"IoA: {ioa(df, dist_x, metric_func)}")
+        c = cpcc(dist_x, dist_t)
+        i = ioa(df, dist_x, metric_func)
+        print(f"CPCC: {c}")
+        print(f"IoA: {i}")
+        return c, i
 
     else:
         print("Wrong task!")
@@ -327,7 +324,6 @@ def knn_test(dataset: Dataset, data: Data, number_of_records: int = None):
 
 def load_dataset(dataset_name: str):
     loaded_data = np.loadtxt(dataset_name, delimiter=",", dtype=object)
-    # loaded_data = pd.read_csv(dataset_name, delimiter=',')
     cols_type = np.loadtxt(
         dataset_name[:-4] + "_cols_type.csv", delimiter=",", dtype=object
     )
@@ -374,10 +370,34 @@ if __name__ == "__main__":
 
     ds1 = Dataset("adult", "cluster", "gower")
     ds2 = Dataset("adult", "cluster", "bin")
+    ds3 = Dataset("adult", "cluster", "euclidean")
+    ds4 = Dataset("adult", "cluster", "cosine")
+    ds5 = Dataset("adult", "cluster", "minkowski")
+    ds6 = Dataset("adult", "cluster", "dice")
+    ds7 = Dataset("adult", "cluster", "jaccard")
 
-    n_s = [50, 100, 200, 300, 500, 1000]
+    knn_test(ds1, D, 500)
+    knn_test(ds5, D, 500)
 
-    for n in n_s:
-        print(f"{n}:")
-        knn_test(ds1, D, n)
-        knn_test(ds2, D, n)
+    # ================ For making comparison ================
+    #
+    # n_s = [50, 75, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1250]
+    #
+    # results = np.zeros((len(n_s), 7, 2))
+    #
+    # for e, n in enumerate(n_s):
+    #     print(f"{n}:")
+    #     results[e][0][0], results[e][0][1] = knn_test(ds1, D, n)
+    #     results[e][1][0], results[e][1][1] = knn_test(ds2, D, n)
+    #     results[e][2][0], results[e][2][1] = knn_test(ds3, D, n)
+    #     results[e][3][0], results[e][3][1] = knn_test(ds4, D, n)
+    #     results[e][4][0], results[e][4][0] = knn_test(ds5, D, n)
+    #     results[e][5][0], results[e][5][1] = knn_test(ds6, D, n)
+    #     results[e][6][0], results[e][6][1] = knn_test(ds7, D, n)
+    #
+    # with open('hierarchical_clustering_res.txt', 'w') as f:
+    #     for i in range(len(n_s)):
+    #         f.write(str(i) + ':\n')
+    #         for d in range(7):
+    #             f.write(str(results[i][d][0]) + ' ' + str(results[i][d][1]) + '\n')
+    #
