@@ -3,8 +3,9 @@ from os import listdir
 from os.path import isfile
 from dataclasses import dataclass
 from enum import Enum
-from typing import List
+from typing import List, Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
 import sklearn.utils.validation
 from scipy.spatial.distance import pdist, squareform
@@ -12,6 +13,8 @@ from scipy.cluster.hierarchy import linkage, dendrogram, cophenet, single
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier, NearestNeighbors
 from sklearn.preprocessing import OrdinalEncoder
+
+import CopheneticTree
 
 
 class DataType(Enum):
@@ -187,21 +190,33 @@ def make_matrix(data_frame: np.ndarray, metric) -> np.array:
 
 
 def cpcc(x, t):
-    x_ = np.average(x)
-    t_ = np.average(t)
 
-    return np.sum((x - x_) * (t - t_)) / np.sqrt(
-        np.sum(np.power(x - x_, 2)) * np.sum(np.power(t - t_, 2))
+    x_row, x_col = np.triu_indices(x.shape[0], k=1)
+    t_row, t_col = np.triu_indices(t.shape[0], k=1)
+
+    x_ = np.average(x[x_row, x_col])
+    t_ = np.average(t[t_row, t_col])
+
+    return np.sum((x[x_row, x_col] - x_) * (t[t_row, t_col] - t_)) / np.sqrt(
+        np.sum(np.power(x[x_row, x_col] - x_, 2))
+        * np.sum(np.power(t[t_row, t_col] - t_, 2))
     )
 
 
-def ioa(X, O, metric_func):
-    Z = single(pdist(X, metric=metric_func))
-    P = np.triu(squareform(cophenet(Z)))
+def ioa(O, P):
+    # Z = single(pdist(X, metric=metric_func))
+    # P = np.triu(squareform(cophenet(Z)))
 
-    O_ = np.average(O)
-    return 1 - np.sum(np.power(P - O, 2)) / np.sum(
-        np.power(np.absolute(P - O_) + np.absolute(O - O_), 2)
+    O_row, O_col = np.triu_indices(O.shape[0], k=1)
+    P_row, P_col = np.triu_indices(P.shape[0], k=1)
+
+    O_ = np.average(O[O_row, O_col])
+    return 1 - np.sum(np.power(P[P_row, P_col] - O[O_row, O_col], 2)) / np.sum(
+        np.power(
+            np.absolute(P[P_row, P_col] - O_)
+            + np.absolute(O[O_row, O_col] - O_),
+            2,
+        )
     )
 
 
@@ -210,6 +225,7 @@ def knn_test(dataset: Dataset, data: Data, number_of_records: int = None):
         number_of_records = len(data.data[dataset.name])
 
     df = np.copy(data.data[dataset.name][:number_of_records])
+    # print('Data:', df)
     df = fill_na(df)
 
     gower = GowerMetric(data.cols_type[dataset.name], "iqr")
@@ -292,25 +308,24 @@ def knn_test(dataset: Dataset, data: Data, number_of_records: int = None):
         if dataset.metric == "gower":
             gower.fit(df)
 
-        # Hierarchical Clustering and dendogram (without plotting)
-        Z = linkage(df, method="single", metric=metric_func)
+        # Hierarchical Clustering and dendrogram (without plotting)
+        Z = linkage(df, method="average", metric=metric_func)
+
+        # plt.figure()
+
         dn = dendrogram(Z, no_plot=True)
-        t_dn = np.array([0] + [p[1] for p in dn["dcoord"]])
 
         # distances between elements using given metric function
         dist_x = np.zeros((number_of_records, number_of_records))
         row, col = np.triu_indices(number_of_records, 1)
         dist_x[row, col] = pdist(df, metric=metric_func)
 
-        # distances between elements on a dendogram
-        dist_t = t_dn.reshape((number_of_records, 1)) - t_dn.reshape(
-            (1, number_of_records)
+        dist_t = CopheneticTree.get_cophenetic_distance_matrix(
+            dn["dcoord"], dn["leaves"]
         )
-        dist_t = np.triu(dist_t)
-        dist_t = np.absolute(dist_t)
 
         c = cpcc(dist_x, dist_t)
-        i = ioa(df, dist_x, metric_func)
+        i = ioa(dist_x, dist_t)
         print(f"CPCC: {c}")
         print(f"IoA: {i}")
         return c, i
@@ -376,8 +391,13 @@ if __name__ == "__main__":
     ds6 = Dataset("adult", "cluster", "dice")
     ds7 = Dataset("adult", "cluster", "jaccard")
 
-    knn_test(ds1, D, 500)
-    knn_test(ds5, D, 500)
+    knn_test(ds1, D, 1000)
+    knn_test(ds2, D, 1000)
+    knn_test(ds3, D, 1000)
+    knn_test(ds4, D, 1000)
+    knn_test(ds5, D, 1000)
+    knn_test(ds6, D, 1000)
+    knn_test(ds7, D, 1000)
 
     # ================ For making comparison ================
     #
