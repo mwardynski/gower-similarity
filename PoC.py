@@ -6,6 +6,7 @@ from enum import Enum
 from typing import List, Optional
 
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import numpy as np
 import sklearn.utils.validation
 from scipy.spatial.distance import pdist, squareform
@@ -16,6 +17,7 @@ from scipy.cluster.hierarchy import (
     single,
     fcluster,
 )
+from sklearn.decomposition import PCA
 from sklearn.metrics import (
     silhouette_score,
     calinski_harabasz_score,
@@ -23,7 +25,7 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier, NearestNeighbors
-from sklearn.preprocessing import OrdinalEncoder
+from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 
 
 class DataType(Enum):
@@ -38,6 +40,7 @@ class Dataset:
     name: str
     task: str
     metric: str
+    labeled: bool
 
 
 @dataclass
@@ -212,7 +215,69 @@ def ioa(O, P):
     )
 
 
-def knn_test(dataset: Dataset, data: Data, number_of_records: int = None):
+def silhouette_test(Z, df, metric_func):
+    scores = []
+
+    for i in range(3, 10):
+        pred_labels = fcluster(Z, t=i, criterion="maxclust")
+        scores.append(silhouette_score(df, pred_labels, metric=metric_func))
+
+    scores = np.array(scores)
+    X_values = np.linspace(3, 10, 7)
+    plt.plot(X_values, scores)
+    plt.show()
+
+
+def pca_test(df: np.ndarray, y: np.ndarray = None, labels=None):
+    if y is None and labels is None:
+        print(
+            "PCA Test Error - data is not labeled neither by y nor by predicted labels!"
+        )
+        return
+
+    colors = list(mcolors.CSS4_COLORS.values())
+    df_cp = df.copy()
+
+    df_cp = StandardScaler().fit_transform(df_cp)
+
+    pca = PCA(n_components=2)
+    principal_components = pca.fit_transform(df_cp)
+
+    if labels is not None:
+        y = labels
+        colors = colors[: np.max(labels)]
+    else:
+        colors = colors[: np.max(y)]
+
+    y = y.copy()
+    y = y.reshape(-1, 1)
+
+    principal_components = np.concatenate((principal_components, y), axis=1)
+
+    for e, color in enumerate(colors):
+        plt.scatter(
+            x=[
+                principal_component[0]
+                for principal_component in principal_components[
+                    principal_components[:, 2] == e + 1
+                ]
+            ],
+            y=[
+                principal_component[1]
+                for principal_component in principal_components[
+                    principal_components[:, 2] == e + 1
+                ]
+            ],
+            c=color,
+            label=str(e + 1),
+        )
+
+    print(np.bincount(labels))
+    plt.legend()
+    plt.show()
+
+
+def mertic_test(dataset: Dataset, data: Data, number_of_records: int = None):
     if number_of_records is None:
         number_of_records = len(data.data[dataset.name])
 
@@ -286,14 +351,23 @@ def knn_test(dataset: Dataset, data: Data, number_of_records: int = None):
             i
             for i in range(len(gower.dtypes))
             if gower.dtypes[i] == DataType.CATEGORICAL_NOMINAL
-        ] + [len(gower.dtypes)]
-        fit_df = df[:, cat_nom_cols]
+        ]
 
-        enc.fit(fit_df)
-        fit_df = enc.transform(fit_df)
-        df[:, cat_nom_cols] = fit_df
+        if dataset.labeled:
+            cat_nom_cols += [len(gower.dtypes)]
 
-        df = df[:, :-1]
+        if len(cat_nom_cols) != 0:
+            fit_df = df[:, cat_nom_cols]
+
+            enc.fit(fit_df)
+            fit_df = enc.transform(fit_df)
+            df[:, cat_nom_cols] = fit_df
+
+        y = None
+        if dataset.labeled:
+            y = df[:, -1]
+            df = df[:, :-1]
+            y = np.ndarray.astype(y, dtype=np.float64)
 
         df = np.ndarray.astype(df, dtype=np.float64)
 
@@ -307,24 +381,29 @@ def knn_test(dataset: Dataset, data: Data, number_of_records: int = None):
         # plt.show()
 
         dist_x = pdist(df, metric=metric_func)
-        pred_labels = fcluster(Z, t=3, criterion="maxclust")
+        pred_labels = fcluster(Z, t=4, criterion="maxclust")
 
         c, cophenetic_distances = cpcc(dist_x, Z)
         i = ioa(dist_x, cophenetic_distances)
-        s = silhouette_score(df, pred_labels, metric=metric_func)
-        cal_halab = calinski_harabasz_score(df, pred_labels)
-        dav_bould = davies_bouldin_score(df, pred_labels)
+
         print(f"CPCC: {c}")
         print(f"IoA: {i}")
-        print(f"Silhouette: {s}")
-        print(f"Calinski-Harabasz: {cal_halab}")
-        print(f"Davies-Bouldin index: {dav_bould}")
+
+        if np.max(pred_labels) > 1:
+            s = silhouette_score(df, pred_labels, metric=metric_func)
+            cal_halab = calinski_harabasz_score(df, pred_labels)
+            dav_bould = davies_bouldin_score(df, pred_labels)
+            print(f"Silhouette: {s}")
+            print(f"Calinski-Harabasz: {cal_halab}")
+            print(f"Davies-Bouldin index: {dav_bould}")
+            # silhouette_test(Z, df, metric_func)
+            pca_test(df, y, pred_labels)
+        else:
+            print("Predicted labels = 1!")
 
         # plt.title(dataset.metric)
         # plt.imshow(squareform(cophenetic_distances), cmap='hot')
         # plt.show()
-
-        return c, i, s
 
     else:
         print("Wrong task!")
@@ -379,43 +458,24 @@ if __name__ == "__main__":
 
     print(f"Loaded sets: {list(D.data.keys())}")
 
-    ds1 = Dataset("adult", "cluster", "gower")
-    ds2 = Dataset("adult", "cluster", "bin")
-    ds3 = Dataset("adult", "cluster", "euclidean")
-    ds4 = Dataset("adult", "cluster", "cosine")
-    ds5 = Dataset("adult", "cluster", "minkowski")
-    ds6 = Dataset("adult", "cluster", "dice")
-    ds7 = Dataset("adult", "cluster", "jaccard")
+    test_dataset_name = "quakes"
+    test_type = "cluster"
+    labeled = False
 
-    n = 500
+    ds1 = Dataset(test_dataset_name, test_type, "gower", labeled)
+    ds2 = Dataset(test_dataset_name, test_type, "bin", labeled)
+    ds3 = Dataset(test_dataset_name, test_type, "euclidean", labeled)
+    ds4 = Dataset(test_dataset_name, test_type, "cosine", labeled)
+    ds5 = Dataset(test_dataset_name, test_type, "minkowski", labeled)
+    ds6 = Dataset(test_dataset_name, test_type, "dice", labeled)
+    ds7 = Dataset(test_dataset_name, test_type, "jaccard", labeled)
 
-    knn_test(ds1, D, n)
-    knn_test(ds2, D, n)
-    knn_test(ds3, D, n)
-    knn_test(ds4, D, n)
-    knn_test(ds5, D, n)
-    knn_test(ds6, D, n)
-    knn_test(ds7, D, n)
+    n = 250
 
-    # ================ For making comparison ================
-    #
-    # n_s = [50, 75, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1250]
-    #
-    # results = np.zeros((len(n_s), 7, 2))
-    #
-    # for e, n in enumerate(n_s):
-    #     print(f"{n}:")
-    #     results[e][0][0], results[e][0][1] = knn_test(ds1, D, n)
-    #     results[e][1][0], results[e][1][1] = knn_test(ds2, D, n)
-    #     results[e][2][0], results[e][2][1] = knn_test(ds3, D, n)
-    #     results[e][3][0], results[e][3][1] = knn_test(ds4, D, n)
-    #     results[e][4][0], results[e][4][0] = knn_test(ds5, D, n)
-    #     results[e][5][0], results[e][5][1] = knn_test(ds6, D, n)
-    #     results[e][6][0], results[e][6][1] = knn_test(ds7, D, n)
-    #
-    # with open('hierarchical_clustering_res.txt', 'w') as f:
-    #     for i in range(len(n_s)):
-    #         f.write(str(i) + ':\n')
-    #         for d in range(7):
-    #             f.write(str(results[i][d][0]) + ' ' + str(results[i][d][1]) + '\n')
-    #
+    mertic_test(ds1, D, n)
+    mertic_test(ds2, D, n)
+    mertic_test(ds3, D, n)
+    mertic_test(ds4, D, n)
+    mertic_test(ds5, D, n)
+    mertic_test(ds6, D, n)
+    mertic_test(ds7, D, n)
