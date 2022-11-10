@@ -9,12 +9,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sklearn.utils.validation
 from scipy.spatial.distance import pdist, squareform
-from scipy.cluster.hierarchy import linkage, dendrogram, cophenet, single
+from scipy.cluster.hierarchy import (
+    linkage,
+    dendrogram,
+    cophenet,
+    single,
+    fcluster,
+)
+from sklearn.metrics import (
+    silhouette_score,
+    calinski_harabasz_score,
+    davies_bouldin_score,
+)
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier, NearestNeighbors
 from sklearn.preprocessing import OrdinalEncoder
-
-import CopheneticTree
 
 
 class DataType(Enum):
@@ -189,32 +198,15 @@ def make_matrix(data_frame: np.ndarray, metric) -> np.array:
     return pdist(data_frame, metric)
 
 
-def cpcc(x, t):
-
-    x_row, x_col = np.triu_indices(x.shape[0], k=1)
-    t_row, t_col = np.triu_indices(t.shape[0], k=1)
-
-    x_ = np.average(x[x_row, x_col])
-    t_ = np.average(t[t_row, t_col])
-
-    return np.sum((x[x_row, x_col] - x_) * (t[t_row, t_col] - t_)) / np.sqrt(
-        np.sum(np.power(x[x_row, x_col] - x_, 2))
-        * np.sum(np.power(t[t_row, t_col] - t_, 2))
-    )
+def cpcc(X, Z):
+    return cophenet(Z, X)
 
 
 def ioa(O, P):
-    # Z = single(pdist(X, metric=metric_func))
-    # P = np.triu(squareform(cophenet(Z)))
-
-    O_row, O_col = np.triu_indices(O.shape[0], k=1)
-    P_row, P_col = np.triu_indices(P.shape[0], k=1)
-
-    O_ = np.average(O[O_row, O_col])
-    return 1 - np.sum(np.power(P[P_row, P_col] - O[O_row, O_col], 2)) / np.sum(
+    O_ = np.average(O)
+    return 1 - np.sum(np.power(P - O, 2)) / np.sum(
         np.power(
-            np.absolute(P[P_row, P_col] - O_)
-            + np.absolute(O[O_row, O_col] - O_),
+            np.absolute(P - O_) + np.absolute(O - O_),
             2,
         )
     )
@@ -310,25 +302,29 @@ def knn_test(dataset: Dataset, data: Data, number_of_records: int = None):
 
         # Hierarchical Clustering and dendrogram (without plotting)
         Z = linkage(df, method="average", metric=metric_func)
-
         # plt.figure()
+        # dn = dendrogram(Z, no_plot=True)
+        # plt.show()
 
-        dn = dendrogram(Z, no_plot=True)
+        dist_x = pdist(df, metric=metric_func)
+        pred_labels = fcluster(Z, t=3, criterion="maxclust")
 
-        # distances between elements using given metric function
-        dist_x = np.zeros((number_of_records, number_of_records))
-        row, col = np.triu_indices(number_of_records, 1)
-        dist_x[row, col] = pdist(df, metric=metric_func)
-
-        dist_t = CopheneticTree.get_cophenetic_distance_matrix(
-            dn["dcoord"], dn["leaves"]
-        )
-
-        c = cpcc(dist_x, dist_t)
-        i = ioa(dist_x, dist_t)
+        c, cophenetic_distances = cpcc(dist_x, Z)
+        i = ioa(dist_x, cophenetic_distances)
+        s = silhouette_score(df, pred_labels, metric=metric_func)
+        cal_halab = calinski_harabasz_score(df, pred_labels)
+        dav_bould = davies_bouldin_score(df, pred_labels)
         print(f"CPCC: {c}")
         print(f"IoA: {i}")
-        return c, i
+        print(f"Silhouette: {s}")
+        print(f"Calinski-Harabasz: {cal_halab}")
+        print(f"Davies-Bouldin index: {dav_bould}")
+
+        # plt.title(dataset.metric)
+        # plt.imshow(squareform(cophenetic_distances), cmap='hot')
+        # plt.show()
+
+        return c, i, s
 
     else:
         print("Wrong task!")
@@ -391,13 +387,15 @@ if __name__ == "__main__":
     ds6 = Dataset("adult", "cluster", "dice")
     ds7 = Dataset("adult", "cluster", "jaccard")
 
-    knn_test(ds1, D, 1000)
-    knn_test(ds2, D, 1000)
-    knn_test(ds3, D, 1000)
-    knn_test(ds4, D, 1000)
-    knn_test(ds5, D, 1000)
-    knn_test(ds6, D, 1000)
-    knn_test(ds7, D, 1000)
+    n = 500
+
+    knn_test(ds1, D, n)
+    knn_test(ds2, D, n)
+    knn_test(ds3, D, n)
+    knn_test(ds4, D, n)
+    knn_test(ds5, D, n)
+    knn_test(ds6, D, n)
+    knn_test(ds7, D, n)
 
     # ================ For making comparison ================
     #
