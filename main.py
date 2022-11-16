@@ -2,6 +2,8 @@ import random
 
 from time import sleep
 
+from pathlib import Path
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -25,9 +27,9 @@ def derivative(w):
 
 
 if __name__ == "__main__":
-    with tqdm(total=100, ncols=100) as pbar:
-        with tqdm(total=100, ncols=100, position=1) as pbar2:
-            for i in range(10):
-                sleep(0.3)
-                pbar.update(10)
-            pbar2.update(50)
+    a = np.array([1.0])
+    b = np.array([2.0])
+    print(a, b)
+
+    c = a > b
+    print(b[~c])
