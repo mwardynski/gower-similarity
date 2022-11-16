@@ -2,34 +2,35 @@ import random
 
 from time import sleep
 
-from pathlib import Path
-
 import numpy as np
 import matplotlib.pyplot as plt
 
 from tqdm import tqdm
 from scipy.optimize import minimize
 
+from enum import Enum
 
-def metric(vec_1, vec_2):
-    print(f"{vec_1[0]} - {type(vec_1[0])}\n{vec_2} - {type(vec_2)}")
-    return np.abs(np.sum(vec_1 - vec_2))
-
-
-def func(w):
-    print("func", w[0] ** 2 + w[1] ** 2)
-    return w[0] ** 2 + w[1] ** 2
+import timeit
 
 
-def derivative(w):
-    print("deriv", np.array([2 * w[0] + w[1] ** 2, w[0] ** 2 + 2 * w[1] ** 0]))
-    return np.array([2 * w[0] + w[1] ** 2, w[0] ** 2 + 2 * w[1] ** 0])
+class SimpleEnum(Enum):
+    example_0 = 0
+    example_1 = 1
+    example_2 = 2
 
 
 if __name__ == "__main__":
-    a = np.array([1.0])
-    b = np.array([2.0])
-    print(a, b)
+    a = np.array([SimpleEnum.example_0 for _ in range(1000)])
+    b = np.array([0 for _ in range(1000)])
 
-    c = a > b
-    print(b[~c])
+    start = timeit.default_timer()
+    eq_1 = a == SimpleEnum.example_0
+    print("{:.2e}".format(timeit.default_timer() - start))
+
+    start = timeit.default_timer()
+    eq_2 = b == 0
+    print("{:.2e}".format(timeit.default_timer() - start))
+
+    start = timeit.default_timer()
+    eq_3 = (a == SimpleEnum.example_0) | (b == 0)
+    print("{:.2e}".format(timeit.default_timer() - start))
