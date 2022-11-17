@@ -106,25 +106,34 @@ class GowerMetric:
         start = timeit.default_timer()
         distances = [
             self.weights_[self._cat_nom_idx]
-            * self._cat_nom_bin_sym(
-                cat_nom_cols_1,
-                cat_nom_cols_2,
+            * (
+                1
+                - self._cat_nom_bin_sym(
+                    cat_nom_cols_1,
+                    cat_nom_cols_2,
+                )
             )
             if self._cat_nom_num
             else [],
             self.weights_[self._ratio_scale_idx]
-            * self._ratio_scale(
-                ratio_scale_cols_1,
-                ratio_scale_cols_2,
-                self.ranges_[self._ratio_scale_idx],
-                self.h_[self._ratio_scale_idx],
+            * (
+                1
+                - self._ratio_scale(
+                    ratio_scale_cols_1,
+                    ratio_scale_cols_2,
+                    self.ranges_[self._ratio_scale_idx],
+                    self.h_[self._ratio_scale_idx],
+                )
             )
             if self._ratio_scale_num
             else [],
             self.weights_[self._bin_asym_idx]
-            * self._bin_asym(
-                bin_asym_cols_1,
-                bin_asym_cols_2,
+            * (
+                1.0
+                - self._bin_asym(
+                    bin_asym_cols_1,
+                    bin_asym_cols_2,
+                )
             )
             if self._bin_asym_num
             else [],
@@ -133,9 +142,13 @@ class GowerMetric:
         # TODO ------------------ Section 2 ------------------
 
         distances = np.concatenate(distances)
-        distances = 1.0 - distances
+        distances = distances
+
+        # print(distances, end=' ')
+
         distance = np.sum(distances)
 
+        # print(distance)
         distance /= vector_1.size
 
         return distance
@@ -153,6 +166,10 @@ class GowerMetric:
                     # IQR (g_t) - Interquartile Range
                     q1, q3 = np.percentile(column, [25, 75])
                     self.ranges_[i] = q3 - q1
+
+                    if self.ranges_[i] == 0:
+                        self.ranges_[i] = np.ptp(column, axis=0)
+
                 elif self.ratio_scale_normalization == "range":
                     # Traditional range of values
                     self.ranges_[i] = np.ptp(column, axis=0)
@@ -192,12 +209,7 @@ class GowerMetric:
         self, vector_1: np.ndarray, vector_2: np.ndarray
     ) -> np.ndarray:
 
-        eq = np.array(vector_1 == vector_2)
-
-        eq = np.ndarray.astype(eq, dtype=np.int64)
-        eq = np.ndarray.astype(eq, dtype=np.float64)
-
-        return eq
+        return vector_1 == vector_2
 
     def _ratio_scale(
         self,

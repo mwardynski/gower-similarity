@@ -140,7 +140,6 @@ def mertic_test(
     dataset: Dataset,
     data: Data,
     number_of_records: int = None,
-    precomputed_weights: str = None,
 ):
     if number_of_records is None:
         number_of_records = len(data.data[dataset.name])
@@ -367,7 +366,6 @@ if __name__ == "__main__":
         ds1,
         D,
         n,
-        precomputed_weights="gower_metric_saved_weights/saved_weights_quakes.csv",
     )
 
     print(
@@ -378,7 +376,6 @@ if __name__ == "__main__":
         ds1,
         D,
         n,
-        precomputed_weights="gower_metric_saved_weights/saved_weights_quakes.csv",
     )
 
     print("Section 1:", gower.section_time_1)

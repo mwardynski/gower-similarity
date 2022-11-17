@@ -20,14 +20,19 @@ class SimpleEnum(Enum):
 
 
 if __name__ == "__main__":
-    N = 344375
-    vec_1 = np.arange(5)
-    vec_2 = np.arange(5) + 3
+    # N = 344375
+    # vec_1 = np.arange(5)
+    # vec_2 = np.arange(5) + 3
+    #
+    # truth_table = np.array([True for _ in range(5)])
+    #
+    # start = timeit.default_timer()
+    # for _ in range(344375):
+    #     vec_3 = vec_1 - vec_2
+    #     vec_3 = np.abs(vec_1, vec_2)
+    # print(timeit.default_timer() - start)
 
-    truth_table = np.array([True for _ in range(5)])
+    a = np.array([1, 2, 3, 4, 5])
+    b = np.array([True, False, True, True, True])
 
-    start = timeit.default_timer()
-    for _ in range(344375):
-        vec_3 = vec_1 - vec_2
-        vec_3 = np.abs(vec_1, vec_2)
-    print(timeit.default_timer() - start)
+    print(a * b)
