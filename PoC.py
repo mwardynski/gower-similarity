@@ -359,6 +359,9 @@ if __name__ == "__main__":
         _precomputed_weights_file="gower_metric_saved_weights/saved_weights_quakes.csv",
     )
 
+    print(
+        "=========================== Vectorized ============================="
+    )
     mertic_test(
         gower,
         ds1,
@@ -367,6 +370,9 @@ if __name__ == "__main__":
         precomputed_weights="gower_metric_saved_weights/saved_weights_quakes.csv",
     )
 
+    print(
+        "========================= Not Vectorized ==========================="
+    )
     mertic_test(
         gower2,
         ds1,
@@ -374,6 +380,12 @@ if __name__ == "__main__":
         n,
         precomputed_weights="gower_metric_saved_weights/saved_weights_quakes.csv",
     )
+
+    print("Section 1:", gower.section_time_1)
+    print("Section 2:", gower.section_time_2)
+    print("Section 3:", gower.section_time_3)
+    print("Section 4:", gower.section_time_4)
+    print("Section 5:", gower.section_time_5)
 
     # mertic_test(ds2, D, n)
     # mertic_test(ds3, D, n)

@@ -86,6 +86,8 @@ class GowerMetric:
             print(self.n_features_in_, len(vector_1), len(vector_2))
             return -1
 
+        # TODO ------------------ Section 1 ------------------
+        start = timeit.default_timer()
         if self._cat_nom_num:
             cat_nom_cols_1 = vector_1[self._cat_nom_idx]
             cat_nom_cols_2 = vector_2[self._cat_nom_idx]
@@ -97,7 +99,11 @@ class GowerMetric:
         if self._bin_asym_num:
             bin_asym_cols_1 = vector_1[self._bin_asym_idx]
             bin_asym_cols_2 = vector_2[self._bin_asym_idx]
+        self.section_time_1 += timeit.default_timer() - start
+        # TODO ------------------ Section 1 ------------------
 
+        # TODO ------------------ Section 2 ------------------
+        start = timeit.default_timer()
         distances = [
             self.weights_[self._cat_nom_idx]
             * self._cat_nom_bin_sym(
@@ -123,6 +129,8 @@ class GowerMetric:
             if self._bin_asym_num
             else [],
         ]
+        self.section_time_2 += timeit.default_timer() - start
+        # TODO ------------------ Section 2 ------------------
 
         distances = np.concatenate(distances)
         distances = 1.0 - distances
@@ -198,11 +206,20 @@ class GowerMetric:
         val_range: np.ndarray,
         h: np.ndarray,
     ) -> np.ndarray:
+
+        # TODO ------------------ Section 3 ------------------
+        start = timeit.default_timer()
         absolute = vector_1 - vector_2
         absolute = np.abs(absolute)
+        self.section_time_3 += timeit.default_timer() - start
+        # TODO ------------------ Section 3 ------------------
 
+        # TODO ------------------ Section 4 ------------------
+        start = timeit.default_timer()
         ones = absolute >= val_range
         zeros = absolute <= h
+        self.section_time_4 += timeit.default_timer() - start
+        # TODO ------------------ Section 4 ------------------
 
         if vector_1.size == 1:
             if ones:
@@ -212,9 +229,13 @@ class GowerMetric:
             else:
                 absolute /= val_range
         else:
+            # TODO ------------------ Section 5 ------------------
+            start = timeit.default_timer()
             absolute /= val_range
             absolute[zeros] = 0.0
             absolute[ones] = 1.0
+            self.section_time_5 += timeit.default_timer() - start
+            # TODO ------------------ Section 5 ------------------
 
         return 1.0 - absolute
 
@@ -234,7 +255,6 @@ class GowerMetric:
         self.weights_ = weights
         x = pdist(X, metric=self)
         Z = linkage(x, method="average", metric=self)
-        # print('func:', -cophenet(Z, x)[0])
         return -cophenet(Z, x)[0]
 
     def _cophenetic_dist(self, x):
@@ -261,7 +281,6 @@ class GowerMetric:
             )
         )
         pbar.update(5)
-        # print('deriv:', np.array([derivative_cpcc_func(k) for k in range(self.n_features_in_)]))
         return np.array(
             [-derivative_cpcc_func(k) for k in range(self.n_features_in_)]
         )
