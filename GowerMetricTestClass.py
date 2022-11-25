@@ -38,7 +38,6 @@ class GowerMetric2:
         self.ratio_scale_normalization: str = ratio_scale_normalization
         self._similarities_map = {
             DataType.BINARY_SYMMETRIC: self._bin_sym,
-            DataType.BINARY_ASYMMETRIC: self._bin_asym,
             DataType.CATEGORICAL_NOMINAL: self._cat_nom,
             DataType.RATIO_SCALE: self._ratio_scale,
         }

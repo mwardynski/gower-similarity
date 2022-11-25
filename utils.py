@@ -4,9 +4,8 @@ from enum import Enum
 
 class DataType(Enum):
     BINARY_SYMMETRIC = 0
-    BINARY_ASYMMETRIC = 1
-    CATEGORICAL_NOMINAL = 2
-    RATIO_SCALE = 3
+    CATEGORICAL_NOMINAL = 1
+    RATIO_SCALE = 2
 
 
 @dataclass
@@ -21,7 +20,6 @@ class Dataset:
 class Data:
     cols_type_maping = {
         "bin_sym": DataType.BINARY_SYMMETRIC,
-        "bin_asym": DataType.BINARY_ASYMMETRIC,
         "cat_nom": DataType.CATEGORICAL_NOMINAL,
         "ratio": DataType.RATIO_SCALE,
         "NULL": None,

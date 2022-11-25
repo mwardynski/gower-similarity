@@ -334,7 +334,7 @@ if __name__ == "__main__":
 
     test_dataset_name = "quakes"
     test_type = "cluster"
-    labeled = False
+    labeled = False  # if dataset has column labels in same file as columns
 
     ds1 = Dataset(test_dataset_name, test_type, "gower", labeled)
     ds2 = Dataset(test_dataset_name, test_type, "bin", labeled)
@@ -349,7 +349,8 @@ if __name__ == "__main__":
     gower = GowerMetric(
         D.cols_type[ds1.name],
         "iqr",
-        _precomputed_weights_file="gower_metric_saved_weights/saved_weights_quakes.csv",
+        weights="precomputed",
+        precomputed_weights_file="gower_metric_saved_weights/saved_weights_quakes.csv",
     )
 
     gower2 = GowerMetric2(
@@ -377,12 +378,6 @@ if __name__ == "__main__":
         D,
         n,
     )
-
-    print("Section 1:", gower.section_time_1)
-    print("Section 2:", gower.section_time_2)
-    print("Section 3:", gower.section_time_3)
-    print("Section 4:", gower.section_time_4)
-    print("Section 5:", gower.section_time_5)
 
     # mertic_test(ds2, D, n)
     # mertic_test(ds3, D, n)
