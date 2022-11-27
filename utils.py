@@ -4,8 +4,9 @@ from enum import Enum
 
 class DataType(Enum):
     BINARY_SYMMETRIC = 0
-    CATEGORICAL_NOMINAL = 1
-    RATIO_SCALE = 2
+    BINARY_ASYMMETRIC = 1
+    CATEGORICAL_NOMINAL = 2
+    RATIO_SCALE = 3
 
 
 @dataclass

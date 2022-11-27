@@ -98,7 +98,7 @@ class GowerMetric2:
             if self.dtypes[i] == DataType.RATIO_SCALE:
                 column = X[:, i]
 
-                if self.ratio_scale_normalization == "iqr":
+                if self.ratio_scale_normalization == "iqr" or self.ratio_scale_normalization == "kde":
                     # IQR (g_t) - Interquartile Range
                     q1, q3 = np.percentile(column, [25, 75])
                     self.ranges_[i] = q3 - q1

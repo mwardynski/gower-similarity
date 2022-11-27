@@ -348,14 +348,14 @@ if __name__ == "__main__":
 
     gower = GowerMetric(
         D.cols_type[ds1.name],
-        "iqr",
+        "kde",
         weights="precomputed",
         precomputed_weights_file="gower_metric_saved_weights/saved_weights_quakes.csv",
     )
 
     gower2 = GowerMetric2(
         D.cols_type[ds1.name],
-        "iqr",
+        "kde",
         _precomputed_weights_file="gower_metric_saved_weights/saved_weights_quakes.csv",
     )
 
