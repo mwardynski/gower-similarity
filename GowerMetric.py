@@ -12,9 +12,7 @@ from scipy.cluster.hierarchy import (
     fcluster,
 )
 from scipy.optimize import minimize
-from sklearn.metrics import (
-    silhouette_score,
-)
+from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 
 from utils import DataType
@@ -28,19 +26,32 @@ class GowerMetric:
         weights: Optional[Union[list, str]] = None,
         precomputed_weights_file: Optional[str] = None,
     ):
-        assert weights is None or weights == 'precomputed' or weights == 'cpcc' or type(weights) == np.ndarray or type(weights) == list
+        assert (
+            weights is None
+            or weights == "precomputed"
+            or weights == "cpcc"
+            or type(weights) == np.ndarray
+            or type(weights) == list
+        )
+        assert (
+            ratio_scale_normalization == "range"
+            or ratio_scale_normalization == "iqr"
+            or ratio_scale_normalization == "kde"
+        )
 
         self.dtypes = dtypes  # initialize with np.array of column data types
         self.weights = weights
         self.precomputed_weights_file = precomputed_weights_file
-        self.ranges_: List  # values of ranges in .ratio_scale() (iqr or traditional range)
-        self.h_: List  # h values in .ratio_scale()
+        self.ranges_: np.ndarray  # values of ranges in .ratio_scale() (iqr or traditional range)
+        self.h_: np.ndarray  # h values in .ratio_scale()
         self.n_features_in_: int
         self.ratio_scale_normalization: str = ratio_scale_normalization
 
         # Bit masks for certain column types
         self.ratio_scale_idx = self.dtypes == DataType.RATIO_SCALE
-        self.cat_nom_idx = (self.dtypes == DataType.CATEGORICAL_NOMINAL) | (self.dtypes == DataType.BINARY_SYMMETRIC)
+        self.cat_nom_idx = (self.dtypes == DataType.CATEGORICAL_NOMINAL) | (
+            self.dtypes == DataType.BINARY_SYMMETRIC
+        )
         self.bin_asym_idx = self.dtypes == DataType.BINARY_ASYMMETRIC
 
         # Sums of columns of given type
@@ -51,27 +62,30 @@ class GowerMetric:
     def fit(self, X):
         assert X.shape[1] == len(self.dtypes)
 
-        self.ranges_ = np.empty(X.shape[1])
-        self.h_ = np.empty(X.shape[1])
+        self.ranges_ = np.empty(self.ratio_scale_num)
+
+        if self.ratio_scale_normalization == "kde":
+            self.h_ = np.empty(X.shape[1])
         self.n_features_in_ = X.shape[1]
 
         ratio_cols = X[:, self.ratio_scale_idx]
-        if self.ratio_scale_normalization == 'range':
-            self.ranges_[self.ratio_scale_idx] = np.ptp(ratio_cols, axis=0)
-        elif self.ratio_scale_normalization == 'iqr' or self.ratio_scale_normalization == 'kde':
+        if self.ratio_scale_normalization == "range":
+            self.ranges_ = np.ptp(ratio_cols, axis=0)
+        elif self.ratio_scale_normalization in {"iqr", "kde"}:
             q1, q3 = np.percentile(ratio_cols, [25, 75], axis=0)
-            self.ranges_[self.ratio_scale_idx] = q3 - q1
+            self.ranges_ = q3 - q1
 
-            zero_ranges_idx = (self.ranges_ == 0) & (self.ratio_scale_idx)
-            self.ranges_[zero_ranges_idx] = np.ptp(X[:, zero_ranges_idx], axis=0)
+            # If any iqr ends up being equal to 0, we change it to standard range
+            # zero_ranges_idx = (self.ranges_ == 0) & (self.ratio_scale_idx)
+            # self.ranges_[zero_ranges_idx] = np.ptp(X[:, zero_ranges_idx], axis=0)
 
-        if self.ratio_scale_normalization == 'kde':
+        if self.ratio_scale_normalization == "kde":
             n = X.shape[0]
             c = 1.06
 
             s = np.std(ratio_cols, axis=0)
             self.h_[self.ratio_scale_idx] = (
-                c / n ** (1 / 5) * np.min([s, self.ranges_[self.ratio_scale_idx] / 1.34], axis=0)
+                c / n ** (1 / 5) * np.min([s, self.ranges_ / 1.34], axis=0)
             )
 
         loader = GowerMetricWeights(self)
@@ -84,13 +98,12 @@ class GowerMetric:
         loader.select_number_of_clusters(X)
 
     def __call__(
-        self,
-        vector_1: np.ndarray,
-        vector_2: np.ndarray,
+        self, vector_1: np.ndarray, vector_2: np.ndarray,
     ):
         # TODO - no check for fit
         # sklearn.utils.validation.check_is_fitted(self)
-        assert self.n_features_in_ == len(vector_1) | len(vector_2)
+        assert self.n_features_in_ == len(vector_1)
+        assert self.n_features_in_ == len(vector_2)
 
         # Distance for cat_nom and bin_sym columns
         if self.cat_nom_num > 0:
@@ -129,12 +142,15 @@ class GowerMetric:
             ratio_scale_cols_2 = vector_2[self.ratio_scale_idx]
             ratio_dist = np.abs(ratio_scale_cols_1 - ratio_scale_cols_2)
 
-            above_threshold = ratio_dist >= self.ranges_[self.ratio_scale_idx]
-            below_threshold = ratio_dist <= self.h_[self.ratio_scale_idx]
+            above_threshold = ratio_dist >= self.ranges_
+            if self.ratio_scale_normalization == "kde":
+                below_threshold = ratio_dist <= self.h_[self.ratio_scale_idx]
 
-            ratio_dist /= self.ranges_[self.ratio_scale_idx]
-            ratio_dist[below_threshold] = 0.0
+            ratio_dist /= self.ranges_
             ratio_dist[above_threshold] = 1.0
+
+            if self.ratio_scale_normalization == "kde":
+                ratio_dist[below_threshold] = 0.0
 
             if self.weights is not None:
                 ratio_dist = ratio_dist @ self.weights[self.ratio_scale_idx]
@@ -212,7 +228,7 @@ class GowerMetricWeights:
 
     def _cpcc(self, weights, X, t=None, pbar=None):
         self.iteration += 1
-        print(f'{self.iteration} iteration')
+        print(f"{self.iteration} iteration")
         self.gower.weights = weights
         x = pdist(X, metric=self.gower)
         Z = linkage(x, method="average", metric=self.gower)
@@ -292,7 +308,7 @@ class GowerMetricWeights:
         best_weights = (0.0,)
 
         for i in range(number_of_initial_weights):
-            print(f'{i} set of weights')
+            print(f"{i} set of weights")
             self.iteration = 0
             self.gower.weights = initial_weights[i]
             opt_weights = minimize(
@@ -349,7 +365,9 @@ class GowerMetricWeights:
         for i in range(3, 10):
             pred_labels = fcluster(Z, t=i, criterion="maxclust")
             if len(np.unique(pred_labels)) > 1:
-                scores.append(silhouette_score(X, pred_labels, metric=self.gower))
+                scores.append(
+                    silhouette_score(X, pred_labels, metric=self.gower)
+                )
             else:
                 scores.append(0.0)
         scores = np.array(scores)

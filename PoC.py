@@ -369,15 +369,15 @@ if __name__ == "__main__":
         n,
     )
 
-    # print(
-    #     "========================= Not Vectorized ==========================="
-    # )
-    # mertic_test(
-    #     gower2,
-    #     ds1,
-    #     D,
-    #     n,
-    # )
+    print(
+        "========================= Not Vectorized ==========================="
+    )
+    mertic_test(
+        gower2,
+        ds1,
+        D,
+        n,
+    )
 
     # mertic_test(ds2, D, n)
     # mertic_test(ds3, D, n)
