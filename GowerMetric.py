@@ -13,7 +13,7 @@ from scipy.cluster.hierarchy import (
 )
 from scipy.optimize import minimize
 from sklearn.metrics import silhouette_score
-from sklearn.preprocessing import OrdinalEncoder, StandardScaler
+from sklearn.preprocessing import OrdinalEncoder
 
 from utils import DataType
 
@@ -75,9 +75,11 @@ class GowerMetric:
             q1, q3 = np.percentile(ratio_cols, [25, 75], axis=0)
             self.ranges_ = q3 - q1
 
-            # If any iqr ends up being equal to 0, we change it to standard range
-            # zero_ranges_idx = (self.ranges_ == 0) & (self.ratio_scale_idx)
-            # self.ranges_[zero_ranges_idx] = np.ptp(X[:, zero_ranges_idx], axis=0)
+            # Needs this check
+            zero_values_mask = self.ranges_ == 0
+            self.ranges_[zero_values_mask] = np.ptp(
+                ratio_cols[:, zero_values_mask], axis=0
+            )
 
         if self.ratio_scale_normalization == "kde":
             n = X.shape[0]
@@ -178,91 +180,48 @@ class GowerMetricWeights:
         self.gower = gower
         self._cpcc_threshold = _cpcc_threshold
         self._save_computed_weights = _save_computed_weights
+
+        self.S: np.ndarray  # n_features_in x X.size x X.size matrix for cpcc derivative
+
+        self._x: np.ndarray  # distance matrix for current iteration
+        self._Z: np.ndarray  # linkage for current iteration
+
         self.iteration = 0
 
-    def cat_nom_bin_sym(
-        self, vector_1: np.ndarray, vector_2: np.ndarray
-    ) -> np.ndarray:
-
-        return vector_1 == vector_2
-
-    def ratio_scale(
-        self,
-        vector_1: np.ndarray,
-        vector_2: np.ndarray,
-        val_range: np.ndarray,
-        h: np.ndarray,
-    ) -> np.ndarray:
-
-        absolute = vector_1 - vector_2
-        absolute = np.abs(absolute)
-
-        ones = absolute >= val_range
-        zeros = absolute <= h
-
-        if vector_1.size == 1:
-            if ones:
-                return np.array(1.0)
-            elif zeros:
-                return np.array(0.0)
-            else:
-                absolute /= val_range
-        else:
-            absolute /= val_range
-            absolute[zeros] = 0.0
-            absolute[ones] = 1.0
-
-        return 1.0 - absolute
-
+    # Distance in respect to kth column
     def _S_k(self, vector_1: np.ndarray, vector_2: np.ndarray, k: np.int64):
-        return (
-            self.ratio_scale(
-                np.array(vector_1[k]),
-                np.array(vector_2[k]),
-                np.array(self.gower.ranges_[k]),
-                np.array(self.gower.h_[k]),
-            )
-            if self.gower.dtypes[k] == DataType.RATIO_SCALE
-            else self.cat_nom_bin_sym(vector_1[k], vector_2[k])
-        )
+        bit_mask = np.zeros(vector_1.size)
+        bit_mask[k] = 1
+
+        return self.gower(vector_1 * bit_mask, vector_2 * bit_mask)
 
     def _cpcc(self, weights, X, t=None, pbar=None):
         self.iteration += 1
         print(f"{self.iteration} iteration")
+
         self.gower.weights = weights
-        x = pdist(X, metric=self.gower)
-        Z = linkage(x, method="average", metric=self.gower)
-        return -cophenet(Z, x)[0]
+        self._x = pdist(X, metric=self.gower)
+
+        self._Z = linkage(self._x, method="average", metric=self.gower)
+        return -cophenet(self._Z, self._x)[0]
 
     def _cophenetic_dist(self, x):
         Z = linkage(x, method="average", metric=self.gower)
         return cophenet(Z, x)
 
     def _cpcc_jac(self, weights, X, t):
-        x = pdist(X, metric=self.gower)
-        x_ = np.average(x)
+        x_ = np.average(self._x)
         t_ = np.average(t)
 
-        a = x - x_
+        a = self._x - x_
         b = t - t_
 
-        # Distance matrix calculated only for k feature
-        S_i_j_k = lambda k: pdist(X, metric=self._S_k, k=k)
+        factor = (b - a * np.sum(a * b) / np.sum(np.power(a, 2))) / np.sqrt(
+            np.sum(np.power(a, 2)) * np.sum(np.power(b, 2))
+        )
+        res = -np.sum(self.S * factor, axis=1)
 
-        # Derivative of CPCC as a function of k
-        derivative_cpcc_func = lambda k: -np.sum(
-            S_i_j_k(k)
-            * (
-                (b - a * np.sum(a * b) / np.sum(np.power(a, 2)))
-                / np.sqrt(np.sum(np.power(a, 2)) * np.sum(np.power(b, 2)))
-            )
-        )
-        return np.array(
-            [
-                -derivative_cpcc_func(k)
-                for k in range(self.gower.n_features_in_)
-            ]
-        )
+        return res
 
     def _init_weights(self, k):
         return np.array(
@@ -281,10 +240,12 @@ class GowerMetricWeights:
         )
 
     def select_weights(self, X):
-        number_of_initial_weights = 4
+        number_of_initial_weights = 10
         initial_weights = self._init_weights(number_of_initial_weights)
 
         X = X.copy()
+
+        # Change cat_nom columns to ints
         enc = OrdinalEncoder()
         enc.set_params(encoded_missing_value=-1)
 
@@ -295,17 +256,28 @@ class GowerMetricWeights:
             fit_X = enc.transform(fit_X)
             X[:, self.gower.cat_nom_idx] = fit_X
 
+        # convert to float64
         X = np.ndarray.astype(X, dtype=np.float64)
+
+        # Every set of initial weights has same ratio, but different scale,
+        # so distance matrix init_S will be same for every set, and so will be cophenetic distance
+        init_S = pdist(X, metric=self.gower)
+        init_cophet_dist = self._cophenetic_dist(init_S)
 
         initial_weights_scores = []
         for i in range(number_of_initial_weights):
             self.gower.weights = initial_weights[i]
-            S = pdist(X, metric=self.gower)
-            initial_weights_scores.append(self._cophenetic_dist(S))
-
-        initial_weights_scores.sort(key=lambda x: x[1][0], reverse=True)
+            initial_weights_scores.append(init_cophet_dist)
 
         best_weights = (0.0,)
+
+        # We calculate self.S at the beginning, because it will not change in the process
+        self.S = np.array(
+            [
+                pdist(X, metric=self._S_k, k=k)
+                for k in range(self.gower.n_features_in_)
+            ]
+        )
 
         for i in range(number_of_initial_weights):
             print(f"{i} set of weights")
@@ -321,9 +293,11 @@ class GowerMetricWeights:
                 bounds=((0, 1) for _ in range(self.gower.n_features_in_)),
             )
 
+            # if we found better set of weights
             if opt_weights.fun < best_weights[0]:
                 best_weights = (opt_weights.fun, opt_weights.x)
 
+            # check for satisfying cpcc_threshold
             if (
                 self._cpcc_threshold is not None
                 and best_weights[0] < -self._cpcc_threshold
