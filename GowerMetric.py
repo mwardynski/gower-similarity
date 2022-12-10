@@ -186,8 +186,6 @@ class GowerMetricWeights:
         self._x: np.ndarray  # distance matrix for current iteration
         self._Z: np.ndarray  # linkage for current iteration
 
-        self.iteration = 0
-
     # Distance in respect to kth column
     def _S_k(self, vector_1: np.ndarray, vector_2: np.ndarray, k: np.int64):
         bit_mask = np.zeros(vector_1.size)
@@ -196,8 +194,6 @@ class GowerMetricWeights:
         return self.gower(vector_1 * bit_mask, vector_2 * bit_mask)
 
     def _cpcc(self, weights, X, t=None, pbar=None):
-        self.iteration += 1
-        print(f"{self.iteration} iteration")
 
         self.gower.weights = weights
         self._x = pdist(X, metric=self.gower)
@@ -209,6 +205,7 @@ class GowerMetricWeights:
         Z = linkage(x, method="average", metric=self.gower)
         return cophenet(Z, x)
 
+    # Jacobian for cpcc
     def _cpcc_jac(self, weights, X, t):
         x_ = np.average(self._x)
         t_ = np.average(t)
@@ -223,6 +220,7 @@ class GowerMetricWeights:
 
         return res
 
+    # init with k sets of weights
     def _init_weights(self, k):
         return np.array(
             [
@@ -243,31 +241,12 @@ class GowerMetricWeights:
         number_of_initial_weights = 10
         initial_weights = self._init_weights(number_of_initial_weights)
 
-        X = X.copy()
-
-        # Change cat_nom columns to ints
-        enc = OrdinalEncoder()
-        enc.set_params(encoded_missing_value=-1)
-
-        if self.gower.cat_nom_num != 0:
-            fit_X = X[:, self.gower.cat_nom_idx]
-
-            enc.fit(fit_X)
-            fit_X = enc.transform(fit_X)
-            X[:, self.gower.cat_nom_idx] = fit_X
-
-        # convert to float64
-        X = np.ndarray.astype(X, dtype=np.float64)
-
         # Every set of initial weights has same ratio, but different scale,
         # so distance matrix init_S will be same for every set, and so will be cophenetic distance
         init_S = pdist(X, metric=self.gower)
         init_cophet_dist = self._cophenetic_dist(init_S)
 
-        initial_weights_scores = []
-        for i in range(number_of_initial_weights):
-            self.gower.weights = initial_weights[i]
-            initial_weights_scores.append(init_cophet_dist)
+        initial_weights_scores = [init_cophet_dist for _ in range(number_of_initial_weights)]
 
         best_weights = (0.0,)
 
@@ -279,9 +258,10 @@ class GowerMetricWeights:
             ]
         )
 
+        # 'maxiter' option doesn't work for some reason
+        # Issue was addressed on GitHub, but from what I saw there's no solution.
         for i in range(number_of_initial_weights):
             print(f"{i} set of weights")
-            self.iteration = 0
             self.gower.weights = initial_weights[i]
             opt_weights = minimize(
                 self._cpcc,
@@ -310,6 +290,7 @@ class GowerMetricWeights:
         if self._save_computed_weights:
             self._save_weights()
 
+    # TODO - to delete in final version. Keep for now for convenience.
     def load_weights(self, file_name: str):
         self.gower.weights = np.loadtxt(
             file_name, delimiter=",", dtype=np.float64
