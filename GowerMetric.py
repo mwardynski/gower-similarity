@@ -5,15 +5,16 @@ from typing import List, Optional, Union
 
 import numpy as np
 import sklearn.utils.validation
-from scipy.spatial.distance import pdist
 from scipy.cluster.hierarchy import (
     linkage,
     cophenet,
     fcluster,
 )
-from scipy.optimize import minimize
 from sklearn.metrics import silhouette_score
+from scipy.optimize import minimize
 from sklearn.preprocessing import OrdinalEncoder
+from scipy.spatial.distance import pdist
+from scipy.stats import iqr
 
 from utils import DataType
 
@@ -23,7 +24,7 @@ class GowerMetric:
         self,
         dtypes: np.array,
         ratio_scale_normalization: str = "range",
-        weights: Optional[Union[list, str]] = None,
+        weights: Optional[Union[list, str, np.ndarray]] = None,
         precomputed_weights_file: Optional[str] = None,
     ):
         assert (
@@ -55,40 +56,36 @@ class GowerMetric:
         self.bin_asym_idx = self.dtypes == DataType.BINARY_ASYMMETRIC
 
         # Sums of columns of given type
-        self.cat_nom_num = sum(self.cat_nom_idx)
-        self.ratio_scale_num = sum(self.ratio_scale_idx)
-        self.bin_asym_num = sum(self.bin_asym_idx)
+        self.cat_nom_num = np.sum(self.cat_nom_idx)
+        self.ratio_scale_num = np.sum(self.ratio_scale_idx)
+        self.bin_asym_num = np.sum(self.bin_asym_idx)
 
     def fit(self, X):
         assert X.shape[1] == len(self.dtypes)
 
-        self.ranges_ = np.empty(self.ratio_scale_num)
-
-        if self.ratio_scale_normalization == "kde":
-            self.h_ = np.empty(X.shape[1])
         self.n_features_in_ = X.shape[1]
 
-        ratio_cols = X[:, self.ratio_scale_idx]
-        if self.ratio_scale_normalization == "range":
-            self.ranges_ = np.ptp(ratio_cols, axis=0)
-        elif self.ratio_scale_normalization in {"iqr", "kde"}:
-            q1, q3 = np.percentile(ratio_cols, [25, 75], axis=0)
-            self.ranges_ = q3 - q1
+        if self.ratio_scale_num > 0:
+            ratio_cols = X[:, self.ratio_scale_idx]
+            if self.ratio_scale_normalization == "range":
+                self.ranges_ = np.ptp(ratio_cols, axis=0)
+            elif self.ratio_scale_normalization in {"iqr", "kde"}:
+                self.ranges_ = iqr(ratio_cols, axis=0)
 
-            # Needs this check
-            zero_values_mask = self.ranges_ == 0
-            self.ranges_[zero_values_mask] = np.ptp(
-                ratio_cols[:, zero_values_mask], axis=0
-            )
+                # Needs this check
+                zero_values_mask = self.ranges_ == 0
+                self.ranges_[zero_values_mask] = np.ptp(
+                    ratio_cols[:, zero_values_mask], axis=0
+                )
 
-        if self.ratio_scale_normalization == "kde":
-            n = X.shape[0]
-            c = 1.06
+            if self.ratio_scale_normalization == "kde":
+                n = X.shape[0]
+                c = 1.06
 
-            s = np.std(ratio_cols, axis=0)
-            self.h_[self.ratio_scale_idx] = (
-                c / n ** (1 / 5) * np.min([s, self.ranges_ / 1.34], axis=0)
-            )
+                s = np.std(ratio_cols, axis=0)
+                self.h_ = (
+                    c / n ** (1 / 5) * np.min([s, self.ranges_ / 1.34], axis=0)
+                )
 
         loader = GowerMetricWeights(self)
         if self.weights == "precomputed":
@@ -97,24 +94,20 @@ class GowerMetric:
             self.weights = np.ones(self.n_features_in_)
             loader.select_weights(X)
 
-        loader.select_number_of_clusters(X)
+        if self.weights is not None:
+            loader.select_number_of_clusters(X)
 
     def __call__(
         self, vector_1: np.ndarray, vector_2: np.ndarray,
     ):
-        # TODO - no check for fit
-        # sklearn.utils.validation.check_is_fitted(self)
         assert self.n_features_in_ == len(vector_1)
         assert self.n_features_in_ == len(vector_2)
 
-        # Distance for cat_nom and bin_sym columns
         if self.cat_nom_num > 0:
             cat_nom_cols_1 = vector_1[self.cat_nom_idx]
             cat_nom_cols_2 = vector_2[self.cat_nom_idx]
             cat_nom_dist = 1.0 - (cat_nom_cols_1 == cat_nom_cols_2)
 
-            # Weighted variant - dot product with according self.weights columns
-            # Unweighted - a sum of distances between all columns
             if self.weights is not None:
                 cat_nom_dist = cat_nom_dist @ self.weights[self.cat_nom_idx]
             else:
@@ -122,14 +115,12 @@ class GowerMetric:
         else:
             cat_nom_dist = 0.0
 
-        # Distance for bin_asym columns
         if self.bin_asym_num > 0:
             bin_asym_cols_1 = vector_1[self.bin_asym_idx]
             bin_asym_cols_2 = vector_2[self.bin_asym_idx]
 
-            zeros = (bin_asym_cols_1 == 0) | (bin_asym_cols_2 == 0)
-
-            bin_asym_dist = (bin_asym_cols_1 != bin_asym_cols_2) | zeros
+            # 0 if x1 == x2 == 1 or x1 != x2, so it's same as 1 if x1 == x2 == 0
+            bin_asym_dist = (bin_asym_cols_1 == 0) & (bin_asym_cols_2 == 0)
 
             if self.weights is not None:
                 bin_asym_dist = bin_asym_dist @ self.weights[self.bin_asym_idx]
@@ -138,7 +129,6 @@ class GowerMetric:
         else:
             bin_asym_dist = 0.0
 
-        # Distance for ratio_scale columns
         if self.ratio_scale_num > 0:
             ratio_scale_cols_1 = vector_1[self.ratio_scale_idx]
             ratio_scale_cols_2 = vector_2[self.ratio_scale_idx]
@@ -146,9 +136,9 @@ class GowerMetric:
 
             above_threshold = ratio_dist >= self.ranges_
             if self.ratio_scale_normalization == "kde":
-                below_threshold = ratio_dist <= self.h_[self.ratio_scale_idx]
+                below_threshold = ratio_dist <= self.h_
 
-            ratio_dist /= self.ranges_
+            ratio_dist = ratio_dist / self.ranges_
             ratio_dist[above_threshold] = 1.0
 
             if self.ratio_scale_normalization == "kde":
@@ -161,7 +151,6 @@ class GowerMetric:
         else:
             ratio_dist = 0.0
 
-        # Sum of all distances
         distance = cat_nom_dist + bin_asym_dist + ratio_dist
 
         # Normalization
