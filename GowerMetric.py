@@ -235,7 +235,9 @@ class GowerMetricWeights:
         init_S = pdist(X, metric=self.gower)
         init_cophet_dist = self._cophenetic_dist(init_S)
 
-        initial_weights_scores = [init_cophet_dist for _ in range(number_of_initial_weights)]
+        initial_weights_scores = [
+            init_cophet_dist for _ in range(number_of_initial_weights)
+        ]
 
         best_weights = (0.0,)
 
