@@ -27,7 +27,6 @@ from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 
 from utils import Dataset, DataType, Data
 from GowerMetric import GowerMetric
-from GowerMetricTestClass import GowerMetric2
 
 
 def bin_dist(vector_1: np.ndarray, vector_2: np.ndarray):
@@ -348,24 +347,11 @@ if __name__ == "__main__":
         # precomputed_weights_file="gower_metric_saved_weights/saved_weights_quakes.csv",
     )
 
-    gower2 = GowerMetric2(
-        D.cols_type[ds1.name],
-        "kde",
-        _precomputed_weights_file="gower_metric_saved_weights/saved_weights_esoph.csv",
-    )
-
     print(
         "=========================== Vectorized ============================="
     )
     mertic_test(
         gower, ds1, D, n,
-    )
-
-    print(
-        "========================= Not Vectorized ==========================="
-    )
-    mertic_test(
-        gower2, ds1, D, n,
     )
 
     # mertic_test(ds2, D, n)
