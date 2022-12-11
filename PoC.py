@@ -27,7 +27,6 @@ from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 
 from utils import Dataset, DataType, Data
 from GowerMetric import GowerMetric
-from GowerMetricTestClass import GowerMetric2
 
 
 def bin_dist(vector_1: np.ndarray, vector_2: np.ndarray):
@@ -61,10 +60,7 @@ def cpcc(X, Z):
 def ioa(O, P):
     O_ = np.average(O)
     return 1 - np.sum(np.power(P - O, 2)) / np.sum(
-        np.power(
-            np.absolute(P - O_) + np.absolute(O - O_),
-            2,
-        )
+        np.power(np.absolute(P - O_) + np.absolute(O - O_), 2,)
     )
 
 
@@ -136,10 +132,7 @@ def pca_test(df: np.ndarray, y: np.ndarray = None, labels=None):
 
 
 def mertic_test(
-    gower,
-    dataset: Dataset,
-    data: Data,
-    number_of_records: int = None,
+    gower, dataset: Dataset, data: Data, number_of_records: int = None,
 ):
     if number_of_records is None:
         number_of_records = len(data.data[dataset.name])
@@ -329,10 +322,11 @@ def load_sets():
 if __name__ == "__main__":
 
     D = load_sets()
+    # np.random.seed(1234)        # TODO - delete after testing
 
     print(f"Loaded sets: {list(D.data.keys())}")
 
-    test_dataset_name = "quakes"
+    test_dataset_name = "esoph"
     test_type = "cluster"
     labeled = False  # if dataset has column labels in same file as columns
 
@@ -349,34 +343,15 @@ if __name__ == "__main__":
     gower = GowerMetric(
         D.cols_type[ds1.name],
         "kde",
-        weights="precomputed",
-        precomputed_weights_file="gower_metric_saved_weights/saved_weights_quakes.csv",
-    )
-
-    gower2 = GowerMetric2(
-        D.cols_type[ds1.name],
-        "kde",
-        _precomputed_weights_file="gower_metric_saved_weights/saved_weights_quakes.csv",
+        weights="cpcc",
+        # precomputed_weights_file="gower_metric_saved_weights/saved_weights_quakes.csv",
     )
 
     print(
         "=========================== Vectorized ============================="
     )
     mertic_test(
-        gower,
-        ds1,
-        D,
-        n,
-    )
-
-    print(
-        "========================= Not Vectorized ==========================="
-    )
-    mertic_test(
-        gower2,
-        ds1,
-        D,
-        n,
+        gower, ds1, D, n,
     )
 
     # mertic_test(ds2, D, n)
