@@ -27,6 +27,7 @@ from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 
 from utils import Dataset, DataType, Data
 from GowerMetric import GowerMetric
+from GowerMetricCy import GowerMetricCy
 
 
 def bin_dist(vector_1: np.ndarray, vector_2: np.ndarray):
@@ -242,7 +243,7 @@ def mertic_test(
         # plt.show()
 
         num_of_clusters = (
-            gower.number_of_clusters_ if dataset.metric == "gower" else 3
+            gower.number_of_clusters_ if dataset.metric == "gower" and gower.weights is not None else 3
         )
 
         start = timeit.default_timer()
@@ -343,7 +344,14 @@ if __name__ == "__main__":
     gower = GowerMetric(
         D.cols_type[ds1.name],
         "kde",
-        weights="cpcc",
+        # weights="cpcc",
+        # precomputed_weights_file="gower_metric_saved_weights/saved_weights_quakes.csv",
+    )
+
+    gower_cy = GowerMetricCy(
+        D.cols_type[ds1.name],
+        "kde",
+        # weights="cpcc",
         # precomputed_weights_file="gower_metric_saved_weights/saved_weights_quakes.csv",
     )
 
@@ -352,6 +360,13 @@ if __name__ == "__main__":
     )
     mertic_test(
         gower, ds1, D, n,
+    )
+
+    print(
+        "============================= Cython ==============================="
+    )
+    mertic_test(
+        gower_cy, ds1, D, n,
     )
 
     # mertic_test(ds2, D, n)

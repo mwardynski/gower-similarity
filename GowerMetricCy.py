@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import List, Optional, Union
 
 import numpy as np
+
 import sklearn.utils.validation
 from scipy.cluster.hierarchy import (
     linkage,
@@ -18,8 +19,10 @@ from scipy.stats import iqr
 
 from utils import DataType
 
+from gower_metric_call import gower_metric_call
 
-class GowerMetric:
+
+class GowerMetricCy:
     def __init__(
         self,
         dtypes: np.array,
@@ -76,12 +79,6 @@ class GowerMetric:
             elif self.ratio_scale_normalization in {"iqr", "kde"}:
                 self.ranges_ = iqr(ratio_cols, axis=0)
 
-                # # Needs this check
-                # zero_values_mask = self.ranges_ == 0
-                # self.ranges_[zero_values_mask] = np.ptp(
-                #     ratio_cols[:, zero_values_mask], axis=0
-                # )
-
             if self.ratio_scale_normalization == "kde":
                 n = X.shape[0]
                 c = 1.06
@@ -107,66 +104,27 @@ class GowerMetric:
         assert self.n_features_in_ == len(vector_1)
         assert self.n_features_in_ == len(vector_2)
 
-        if self.cat_nom_num > 0:
-            cat_nom_cols_1 = vector_1[self.cat_nom_idx]
-            cat_nom_cols_2 = vector_2[self.cat_nom_idx]
-            cat_nom_dist = 1.0 - (cat_nom_cols_1 == cat_nom_cols_2)
-
-            if self.weights is not None:
-                cat_nom_dist = cat_nom_dist @ self.weights[self.cat_nom_idx]
-            else:
-                cat_nom_dist = cat_nom_dist.sum()
-        else:
-            cat_nom_dist = 0.0
-
-        if self.bin_asym_num > 0:
-            bin_asym_cols_1 = vector_1[self.bin_asym_idx]
-            bin_asym_cols_2 = vector_2[self.bin_asym_idx]
-
-            # 0 if x1 == x2 == 1 or x1 != x2, so it's same as 1 if x1 == x2 == 0
-            bin_asym_dist = (bin_asym_cols_1 == 0) & (bin_asym_cols_2 == 0)
-
-            if self.weights is not None:
-                bin_asym_dist = bin_asym_dist @ self.weights[self.bin_asym_idx]
-            else:
-                bin_asym_dist = bin_asym_dist.sum()
-        else:
-            bin_asym_dist = 0.0
-
-        if self.ratio_scale_num > 0:
-            ratio_scale_cols_1 = vector_1[self.ratio_scale_idx]
-            ratio_scale_cols_2 = vector_2[self.ratio_scale_idx]
-            ratio_dist = np.abs(ratio_scale_cols_1 - ratio_scale_cols_2)
-
-            if self.ratio_scale_normalization == "kde":
-                above_threshold = ratio_dist >= self.ranges_
-                below_threshold = ratio_dist <= self.h_
-
-            ratio_dist = ratio_dist / self.ranges_
-
-            if self.ratio_scale_normalization == "kde":
-                ratio_dist[above_threshold] = 1.0
-                ratio_dist[below_threshold] = 0.0
-
-            if self.weights is not None:
-                ratio_dist = ratio_dist @ self.weights[self.ratio_scale_idx]
-            else:
-                ratio_dist = ratio_dist.sum()
-        else:
-            ratio_dist = 0.0
-
-        distance = cat_nom_dist + bin_asym_dist + ratio_dist
-
-        # Normalization
-        distance /= self.n_features_in_
-
-        return distance
+        return gower_metric_call(
+            vector_1,
+            vector_2,
+            self.weights,
+            self.cat_nom_num,
+            self.bin_asym_num,
+            self.ratio_scale_num,
+            self.cat_nom_idx,
+            self.bin_asym_idx,
+            self.ratio_scale_idx,
+            self.ratio_scale_normalization,
+            self.ranges_,
+            self.h_,
+            self.n_features_in_
+        )
 
 
 class GowerMetricWeights:
     def __init__(
         self,
-        gower: GowerMetric,
+        gower: GowerMetricCy,
         _cpcc_threshold=None,
         _save_computed_weights=True,
     ):
