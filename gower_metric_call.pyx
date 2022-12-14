@@ -18,19 +18,19 @@ def gower_metric_call(np.ndarray[np.float_t, ndim=1] vector_1,
                       int n_features_in_
 ):
 
-    cdef np.ndarray cat_nom_cols_1
-    cdef np.ndarray cat_nom_cols_2
-    cdef np.ndarray cat_nom_dist_vec
+    cdef np.ndarray[np.float_t, ndim=1] cat_nom_cols_1
+    cdef np.ndarray[np.float_t, ndim=1] cat_nom_cols_2
+    cdef np.ndarray[np.float_t, ndim=1] cat_nom_dist_vec
     cdef np.float_t cat_nom_dist
 
-    cdef np.ndarray bin_asym_cols_1
-    cdef np.ndarray bin_asym_cols_2
-    cdef np.ndarray bin_asym_dist_vec
+    cdef np.ndarray[np.float_t, ndim=1] bin_asym_cols_1
+    cdef np.ndarray[np.float_t, ndim=1] bin_asym_cols_2
+    cdef np.ndarray[np.float_t, ndim=1] bin_asym_dist_vec
     cdef np.float_t bin_asym_dist
 
-    cdef np.ndarray ratio_scale_cols_1
-    cdef np.ndarray ratio_scale_cols_2
-    cdef np.ndarray ratio_dist_vec
+    cdef np.ndarray[np.float_t, ndim=1] ratio_scale_cols_1
+    cdef np.ndarray[np.float_t, ndim=1] ratio_scale_cols_2
+    cdef np.ndarray[np.float_t, ndim=1] ratio_dist_vec
     cdef np.float_t ratio_dist
 
     cdef np.ndarray above_threshold
