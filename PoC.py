@@ -27,7 +27,6 @@ from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 
 from utils import Dataset, DataType, Data
 from GowerMetric import GowerMetric
-from GowerMetricCy import GowerMetricCy
 
 
 def bin_dist(vector_1: np.ndarray, vector_2: np.ndarray):
@@ -269,6 +268,25 @@ def mertic_test(
         else:
             print("Predicted labels = 1!")
 
+        # cProfile.runctx("for _ in range(1000000):"
+        #                 "   gower_metric_call("
+        #                 "  df[0],"
+        #                 "  df[1],"
+        #                 "  gower.weights,"
+        #                 "  gower.cat_nom_num,"
+        #                 "  gower.bin_asym_num,"
+        #                 "  gower.ratio_scale_num,"
+        #                 "  gower.cat_nom_idx,"
+        #                 "  gower.bin_asym_idx,"
+        #                 "  gower.ratio_scale_idx,"
+        #                 "  gower.ratio_scale_normalization,"
+        #                 "  gower.ranges_,"
+        #                 "  gower.h_,"
+        #                 "  gower.n_features_in_"
+        #                 "  )", globals(), locals(), "test.prof")
+        # s = pstats.Stats("test.prof")
+        # s.strip_dirs().sort_stats("time").print_stats()
+
         # plt.title(dataset.metric)
         # plt.imshow(squareform(cophenetic_distances), cmap='hot')
         # plt.show()
@@ -327,9 +345,9 @@ if __name__ == "__main__":
 
     print(f"Loaded sets: {list(D.data.keys())}")
 
-    test_dataset_name = "esoph"
+    test_dataset_name = "adult"
     test_type = "cluster"
-    labeled = False  # if dataset has column labels in same file as columns
+    labeled = True  # if dataset has column labels in same file as columns
 
     ds1 = Dataset(test_dataset_name, test_type, "gower", labeled)
     ds2 = Dataset(test_dataset_name, test_type, "bin", labeled)
@@ -344,14 +362,7 @@ if __name__ == "__main__":
     gower = GowerMetric(
         D.cols_type[ds1.name],
         "kde",
-        # weights="cpcc",
-        # precomputed_weights_file="gower_metric_saved_weights/saved_weights_quakes.csv",
-    )
-
-    gower_cy = GowerMetricCy(
-        D.cols_type[ds1.name],
-        "kde",
-        # weights="cpcc",
+        weights="cpcc",
         # precomputed_weights_file="gower_metric_saved_weights/saved_weights_quakes.csv",
     )
 
@@ -360,13 +371,6 @@ if __name__ == "__main__":
     )
     mertic_test(
         gower, ds1, D, n,
-    )
-
-    print(
-        "============================= Cython ==============================="
-    )
-    mertic_test(
-        gower_cy, ds1, D, n,
     )
 
     # mertic_test(ds2, D, n)
