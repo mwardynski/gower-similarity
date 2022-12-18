@@ -333,7 +333,7 @@ if __name__ == "__main__":
     gower = GowerMetric(
         D.cols_type[ds1.name],
         "kde",
-        weights="cpcc",
+        # weights="cpcc",
         # precomputed_weights_file="gower_metric_saved_weights/saved_weights_quakes.csv",
     )
 

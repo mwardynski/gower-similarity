@@ -1,10 +1,8 @@
 import os.path
-import timeit
 from pathlib import Path
 from typing import List, Optional, Union
 
 import numpy as np
-import sklearn.utils.validation
 from numba import njit, prange, jit
 from scipy.cluster.hierarchy import (
     linkage,
@@ -13,7 +11,6 @@ from scipy.cluster.hierarchy import (
 )
 from sklearn.metrics import silhouette_score
 from scipy.optimize import minimize
-from sklearn.preprocessing import OrdinalEncoder
 from scipy.spatial.distance import pdist
 from scipy.stats import iqr
 
@@ -40,7 +37,9 @@ def gower_metric_call_func(vector_1: np.ndarray,
     if cat_nom_num > 0:
         cat_nom_cols_1 = vector_1[cat_nom_idx]
         cat_nom_cols_2 = vector_2[cat_nom_idx]
+
         cat_nom_dist = 1.0 - (cat_nom_cols_1 == cat_nom_cols_2)
+        cat_nom_dist[np.isnan(cat_nom_cols_1) | np.isnan(cat_nom_cols_2)] = 1.0
 
         if weights is not None:
             cat_nom_dist = cat_nom_dist @ weights[cat_nom_idx]
@@ -55,6 +54,7 @@ def gower_metric_call_func(vector_1: np.ndarray,
 
         # 0 if x1 == x2 == 1 or x1 != x2, so it's same as 1 if x1 == x2 == 0
         bin_asym_dist = np.asarray((bin_asym_cols_1 == 0) & (bin_asym_cols_2 == 0), dtype=np.float64)
+        bin_asym_dist[np.isnan(bin_asym_cols_1) | np.isnan(bin_asym_cols_2)] = 1.0
 
         if weights is not None:
             bin_asym_dist = bin_asym_dist @ weights[bin_asym_idx]
@@ -73,6 +73,7 @@ def gower_metric_call_func(vector_1: np.ndarray,
             below_threshold = ratio_dist <= h_
 
         ratio_dist = ratio_dist / ranges_
+        ratio_dist[np.isnan(ratio_scale_cols_1) | np.isnan(ratio_scale_cols_2)] = 1.0
 
         if ratio_scale_normalization == "kde":
             ratio_dist[above_threshold] = 1.0
@@ -140,9 +141,15 @@ class GowerMetric:
         assert X.shape[1] == len(self.dtypes)
 
         self.n_features_in_ = X.shape[1]
+        self.ranges_ = np.ndarray([])
+        self.h_ = np.ndarray([])
 
         if self.ratio_scale_num > 0:
             ratio_cols = X[:, self.ratio_scale_idx]
+
+            col_mean = np.nanmean(ratio_cols, axis=0)
+            nan_indices = np.where(np.isnan(ratio_cols))
+            ratio_cols[nan_indices] = np.take(col_mean, nan_indices[1])
 
             if self.ratio_scale_normalization == "range":
                 self.ranges_ = np.ptp(ratio_cols, axis=0)
