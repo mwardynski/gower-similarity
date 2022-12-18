@@ -5,6 +5,7 @@ from typing import List, Optional, Union
 
 import numpy as np
 import sklearn.utils.validation
+from numba import njit, prange, jit
 from scipy.cluster.hierarchy import (
     linkage,
     cophenet,
@@ -19,6 +20,79 @@ from scipy.stats import iqr
 from utils import DataType
 
 
+@njit
+def gower_metric_call_func(vector_1: np.ndarray,
+                           vector_2: np.ndarray,
+                           weights: np.ndarray,
+                           cat_nom_num: int,
+                           bin_asym_num: int,
+                           ratio_scale_num: int,
+                           cat_nom_idx: np.ndarray,
+                           bin_asym_idx: np.ndarray,
+                           ratio_scale_idx: np.ndarray,
+                           ratio_scale_normalization: str,
+                           ranges_: np.ndarray,
+                           h_: np.ndarray,
+                           n_features_in_: int):
+    assert n_features_in_ == len(vector_1)
+    assert n_features_in_ == len(vector_2)
+
+    if cat_nom_num > 0:
+        cat_nom_cols_1 = vector_1[cat_nom_idx]
+        cat_nom_cols_2 = vector_2[cat_nom_idx]
+        cat_nom_dist = 1.0 - (cat_nom_cols_1 == cat_nom_cols_2)
+
+        if weights is not None:
+            cat_nom_dist = cat_nom_dist @ weights[cat_nom_idx]
+        else:
+            cat_nom_dist = cat_nom_dist.sum()
+    else:
+        cat_nom_dist = 0.0
+
+    if bin_asym_num > 0:
+        bin_asym_cols_1 = vector_1[bin_asym_idx]
+        bin_asym_cols_2 = vector_2[bin_asym_idx]
+
+        # 0 if x1 == x2 == 1 or x1 != x2, so it's same as 1 if x1 == x2 == 0
+        bin_asym_dist = np.asarray((bin_asym_cols_1 == 0) & (bin_asym_cols_2 == 0), dtype=np.float64)
+
+        if weights is not None:
+            bin_asym_dist = bin_asym_dist @ weights[bin_asym_idx]
+        else:
+            bin_asym_dist = bin_asym_dist.sum()
+    else:
+        bin_asym_dist = 0.0
+
+    if ratio_scale_num > 0:
+        ratio_scale_cols_1 = vector_1[ratio_scale_idx]
+        ratio_scale_cols_2 = vector_2[ratio_scale_idx]
+        ratio_dist = np.abs(ratio_scale_cols_1 - ratio_scale_cols_2)
+
+        if ratio_scale_normalization == "kde":
+            above_threshold = ratio_dist >= ranges_
+            below_threshold = ratio_dist <= h_
+
+        ratio_dist = ratio_dist / ranges_
+
+        if ratio_scale_normalization == "kde":
+            ratio_dist[above_threshold] = 1.0
+            ratio_dist[below_threshold] = 0.0
+
+        if weights is not None:
+            ratio_dist = ratio_dist @ weights[ratio_scale_idx]
+        else:
+            ratio_dist = ratio_dist.sum()
+    else:
+        ratio_dist = 0.0
+
+    distance = cat_nom_dist + bin_asym_dist + ratio_dist
+
+    # Normalization
+    distance /= n_features_in_
+
+    return distance
+
+
 class GowerMetric:
     def __init__(
         self,
@@ -26,6 +100,7 @@ class GowerMetric:
         ratio_scale_normalization: str = "range",
         weights: Optional[Union[list, str, np.ndarray]] = None,
         precomputed_weights_file: Optional[str] = None,
+        verbose: int = 0
     ):
         assert (
             weights is None
@@ -43,6 +118,7 @@ class GowerMetric:
         self.dtypes = dtypes  # initialize with np.array of column data types
         self.weights = weights
         self.precomputed_weights_file = precomputed_weights_file
+        self.verbose = verbose
         self.ranges_: np.ndarray  # values of ranges in .ratio_scale() (iqr or traditional range)
         self.h_: np.ndarray  # h values in .ratio_scale()
         self.n_features_in_: int
@@ -67,8 +143,10 @@ class GowerMetric:
 
         if self.ratio_scale_num > 0:
             ratio_cols = X[:, self.ratio_scale_idx]
+
             if self.ratio_scale_normalization == "range":
                 self.ranges_ = np.ptp(ratio_cols, axis=0)
+
             elif self.ratio_scale_normalization in {"iqr", "kde"}:
                 self.ranges_ = iqr(ratio_cols, axis=0)
 
@@ -99,64 +177,99 @@ class GowerMetric:
 
     def __call__(
         self, vector_1: np.ndarray, vector_2: np.ndarray,
-    ):
-        assert self.n_features_in_ == len(vector_1)
-        assert self.n_features_in_ == len(vector_2)
+    ) -> np.float64:
+        # assert self.n_features_in_ == len(vector_1)
+        # assert self.n_features_in_ == len(vector_2)
+        #
+        # if self.cat_nom_num > 0:
+        #     cat_nom_cols_1 = vector_1[self.cat_nom_idx]
+        #     cat_nom_cols_2 = vector_2[self.cat_nom_idx]
+        #     cat_nom_dist = 1.0 - (cat_nom_cols_1 == cat_nom_cols_2)
+        #
+        #     if self.weights is not None:
+        #         cat_nom_dist = cat_nom_dist @ self.weights[self.cat_nom_idx]
+        #     else:
+        #         cat_nom_dist = cat_nom_dist.sum()
+        # else:
+        #     cat_nom_dist = 0.0
+        #
+        # if self.bin_asym_num > 0:
+        #     bin_asym_cols_1 = vector_1[self.bin_asym_idx]
+        #     bin_asym_cols_2 = vector_2[self.bin_asym_idx]
+        #
+        #     # 0 if x1 == x2 == 1 or x1 != x2, so it's same as 1 if x1 == x2 == 0
+        #     bin_asym_dist = (bin_asym_cols_1 == 0) & (bin_asym_cols_2 == 0)
+        #
+        #     if self.weights is not None:
+        #         bin_asym_dist = bin_asym_dist @ self.weights[self.bin_asym_idx]
+        #     else:
+        #         bin_asym_dist = bin_asym_dist.sum()
+        # else:
+        #     bin_asym_dist = 0.0
+        #
+        # if self.ratio_scale_num > 0:
+        #     ratio_scale_cols_1 = vector_1[self.ratio_scale_idx]
+        #     ratio_scale_cols_2 = vector_2[self.ratio_scale_idx]
+        #     ratio_dist = np.abs(ratio_scale_cols_1 - ratio_scale_cols_2)
+        #
+        #     if self.ratio_scale_normalization == "kde":
+        #         above_threshold = ratio_dist >= self.ranges_
+        #         below_threshold = ratio_dist <= self.h_
+        #
+        #     ratio_dist = ratio_dist / self.ranges_
+        #
+        #     if self.ratio_scale_normalization == "kde":
+        #         ratio_dist[above_threshold] = 1.0
+        #         ratio_dist[below_threshold] = 0.0
+        #
+        #     if self.weights is not None:
+        #         ratio_dist = ratio_dist @ self.weights[self.ratio_scale_idx]
+        #     else:
+        #         ratio_dist = ratio_dist.sum()
+        # else:
+        #     ratio_dist = 0.0
+        #
+        # distance = cat_nom_dist + bin_asym_dist + ratio_dist
+        #
+        # # Normalization
+        # distance /= self.n_features_in_
+        #
+        # return distance
 
-        if self.cat_nom_num > 0:
-            cat_nom_cols_1 = vector_1[self.cat_nom_idx]
-            cat_nom_cols_2 = vector_2[self.cat_nom_idx]
-            cat_nom_dist = 1.0 - (cat_nom_cols_1 == cat_nom_cols_2)
+        return gower_metric_call_func(
+            vector_1,
+            vector_2,
+            self.weights,
+            self.cat_nom_num,
+            self.bin_asym_num,
+            self.ratio_scale_num,
+            self.cat_nom_idx,
+            self.bin_asym_idx,
+            self.ratio_scale_idx,
+            self.ratio_scale_normalization,
+            self.ranges_,
+            self.h_,
+            self.n_features_in_
+        )
 
-            if self.weights is not None:
-                cat_nom_dist = cat_nom_dist @ self.weights[self.cat_nom_idx]
-            else:
-                cat_nom_dist = cat_nom_dist.sum()
-        else:
-            cat_nom_dist = 0.0
 
-        if self.bin_asym_num > 0:
-            bin_asym_cols_1 = vector_1[self.bin_asym_idx]
-            bin_asym_cols_2 = vector_2[self.bin_asym_idx]
-
-            # 0 if x1 == x2 == 1 or x1 != x2, so it's same as 1 if x1 == x2 == 0
-            bin_asym_dist = (bin_asym_cols_1 == 0) & (bin_asym_cols_2 == 0)
-
-            if self.weights is not None:
-                bin_asym_dist = bin_asym_dist @ self.weights[self.bin_asym_idx]
-            else:
-                bin_asym_dist = bin_asym_dist.sum()
-        else:
-            bin_asym_dist = 0.0
-
-        if self.ratio_scale_num > 0:
-            ratio_scale_cols_1 = vector_1[self.ratio_scale_idx]
-            ratio_scale_cols_2 = vector_2[self.ratio_scale_idx]
-            ratio_dist = np.abs(ratio_scale_cols_1 - ratio_scale_cols_2)
-
-            above_threshold = ratio_dist >= self.ranges_
-            if self.ratio_scale_normalization == "kde":
-                below_threshold = ratio_dist <= self.h_
-
-            ratio_dist = ratio_dist / self.ranges_
-            ratio_dist[above_threshold] = 1.0
-
-            if self.ratio_scale_normalization == "kde":
-                ratio_dist[below_threshold] = 0.0
-
-            if self.weights is not None:
-                ratio_dist = ratio_dist @ self.weights[self.ratio_scale_idx]
-            else:
-                ratio_dist = ratio_dist.sum()
-        else:
-            ratio_dist = 0.0
-
-        distance = cat_nom_dist + bin_asym_dist + ratio_dist
-
-        # Normalization
-        distance /= self.n_features_in_
-
-        return distance
+# init with k sets of weights
+@njit(parallel=True)
+def _init_weights(k, n_features_in_):
+    return np.array(
+        [
+            [
+                np.random.uniform(
+                    1 / (3 * n_features_in_),
+                    1
+                    - (n_features_in_ - 1)
+                    / (3 * n_features_in_),
+                )
+                for _ in prange(n_features_in_)
+            ]
+            for _ in prange(k)
+        ]
+    )
 
 
 class GowerMetricWeights:
@@ -209,26 +322,9 @@ class GowerMetricWeights:
 
         return res
 
-    # init with k sets of weights
-    def _init_weights(self, k):
-        return np.array(
-            [
-                [
-                    np.random.uniform(
-                        1 / (3 * self.gower.n_features_in_),
-                        1
-                        - (self.gower.n_features_in_ - 1)
-                        / (3 * self.gower.n_features_in_),
-                    )
-                    for _ in range(self.gower.n_features_in_)
-                ]
-                for _ in range(k)
-            ]
-        )
-
     def select_weights(self, X):
         number_of_initial_weights = 10
-        initial_weights = self._init_weights(number_of_initial_weights)
+        initial_weights = _init_weights(number_of_initial_weights, self.gower.n_features_in_)
 
         # Every set of initial weights has same ratio, but different scale,
         # so distance matrix init_S will be same for every set, and so will be cophenetic distance
@@ -245,7 +341,7 @@ class GowerMetricWeights:
         self.S = np.array(
             [
                 pdist(X, metric=self._S_k, k=k)
-                for k in range(self.gower.n_features_in_)
+                for k in prange(self.gower.n_features_in_)
             ]
         )
 

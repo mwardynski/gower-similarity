@@ -242,7 +242,7 @@ def mertic_test(
         # plt.show()
 
         num_of_clusters = (
-            gower.number_of_clusters_ if dataset.metric == "gower" else 3
+            gower.number_of_clusters_ if dataset.metric == "gower" and gower.weights is not None else 3
         )
 
         start = timeit.default_timer()
@@ -267,6 +267,25 @@ def mertic_test(
             # pca_test(df, y, pred_labels)
         else:
             print("Predicted labels = 1!")
+
+        # cProfile.runctx("for _ in range(1000000):"
+        #                 "   gower_metric_call("
+        #                 "  df[0],"
+        #                 "  df[1],"
+        #                 "  gower.weights,"
+        #                 "  gower.cat_nom_num,"
+        #                 "  gower.bin_asym_num,"
+        #                 "  gower.ratio_scale_num,"
+        #                 "  gower.cat_nom_idx,"
+        #                 "  gower.bin_asym_idx,"
+        #                 "  gower.ratio_scale_idx,"
+        #                 "  gower.ratio_scale_normalization,"
+        #                 "  gower.ranges_,"
+        #                 "  gower.h_,"
+        #                 "  gower.n_features_in_"
+        #                 "  )", globals(), locals(), "test.prof")
+        # s = pstats.Stats("test.prof")
+        # s.strip_dirs().sort_stats("time").print_stats()
 
         # plt.title(dataset.metric)
         # plt.imshow(squareform(cophenetic_distances), cmap='hot')
@@ -326,9 +345,9 @@ if __name__ == "__main__":
 
     print(f"Loaded sets: {list(D.data.keys())}")
 
-    test_dataset_name = "esoph"
+    test_dataset_name = "adult"
     test_type = "cluster"
-    labeled = False  # if dataset has column labels in same file as columns
+    labeled = True  # if dataset has column labels in same file as columns
 
     ds1 = Dataset(test_dataset_name, test_type, "gower", labeled)
     ds2 = Dataset(test_dataset_name, test_type, "bin", labeled)
