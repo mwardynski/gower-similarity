@@ -1,8 +1,12 @@
 from typing import Optional, Union
 
+import matplotlib.pyplot as plt
 import numpy as np
+from KDEpy import FFTKDE
 from numba import njit, prange
 from scipy.stats import iqr
+from sklearn.model_selection import GridSearchCV
+from sklearn.neighbors import KernelDensity
 
 from utils import DataType
 from weights import GowerMetricWeights
@@ -19,6 +23,7 @@ def gower_metric_call_func(vector_1: np.ndarray,
                            bin_asym_idx: np.ndarray,
                            ratio_scale_idx: np.ndarray,
                            ratio_scale_normalization: str,
+                           ratio_scale_window: str,
                            ranges_: np.ndarray,
                            h_: np.ndarray,
                            n_features_in_: int):
@@ -59,15 +64,19 @@ def gower_metric_call_func(vector_1: np.ndarray,
         ratio_scale_cols_2 = vector_2[ratio_scale_idx]
         ratio_dist = np.abs(ratio_scale_cols_1 - ratio_scale_cols_2)
 
-        if ratio_scale_normalization == "kde":
+        if ratio_scale_normalization == "iqr":
             above_threshold = ratio_dist >= ranges_
+
+        if ratio_scale_window == "kde":
             below_threshold = ratio_dist <= h_
 
         ratio_dist = ratio_dist / ranges_
         ratio_dist[np.isnan(ratio_scale_cols_1) | np.isnan(ratio_scale_cols_2)] = 1.0
 
-        if ratio_scale_normalization == "kde":
+        if ratio_scale_normalization == "iqr":
             ratio_dist[above_threshold] = 1.0
+
+        if ratio_scale_window == "kde":
             ratio_dist[below_threshold] = 0.0
 
         if weights is not None:
@@ -90,6 +99,8 @@ class GowerMetric:
         self,
         dtypes: np.array,
         ratio_scale_normalization: str = "range",
+        ratio_scale_window: Optional[str] = None,
+        kde_type: Optional[str] = None,
         weights: Optional[Union[list, str, np.ndarray]] = None,
         precomputed_weights_file: Optional[str] = None,
         verbose: int = 0
@@ -104,7 +115,18 @@ class GowerMetric:
         assert (
             ratio_scale_normalization == "range"
             or ratio_scale_normalization == "iqr"
-            or ratio_scale_normalization == "kde"
+        )
+        assert (
+            ratio_scale_window is None
+            or ratio_scale_window == "kde"
+            or ratio_scale_window == "knn"
+        )
+        assert (
+            kde_type is None
+            or kde_type == "cv"
+            or kde_type == "silverman"
+            or kde_type == "scott"
+            or kde_type == "sheather-jones"
         )
 
         self.dtypes = dtypes  # initialize with np.array of column data types
@@ -115,6 +137,8 @@ class GowerMetric:
         self.h_: np.ndarray  # h values in .ratio_scale()
         self.n_features_in_: int
         self.ratio_scale_normalization: str = ratio_scale_normalization
+        self.ratio_scale_window: str = ratio_scale_window
+        self.kde_type: str = kde_type
 
         # Bit masks for certain column types
         self.ratio_scale_idx = self.dtypes == DataType.RATIO_SCALE
@@ -142,10 +166,11 @@ class GowerMetric:
             nan_indices = np.where(np.isnan(ratio_cols))
             ratio_cols[nan_indices] = np.take(col_mean, nan_indices[1])
 
+            # g_t parameter
             if self.ratio_scale_normalization == "range":
                 self.ranges_ = np.ptp(ratio_cols, axis=0)
 
-            elif self.ratio_scale_normalization in {"iqr", "kde"}:
+            elif self.ratio_scale_normalization == "iqr":
                 self.ranges_ = iqr(ratio_cols, axis=0)
 
                 # Needs this check
@@ -154,14 +179,39 @@ class GowerMetric:
                     ratio_cols[:, zero_values_mask], axis=0
                 )
 
-            if self.ratio_scale_normalization == "kde":
+            # h_t parameter
+            if self.ratio_scale_window == "kde":
                 n = X.shape[0]
-                c = 1.06
 
-                s = np.std(ratio_cols, axis=0)
-                self.h_ = (
-                    c / n ** (1 / 5) * np.min([s, self.ranges_ / 1.34], axis=0)
-                )
+                if self.kde_type == "silverman":
+                    c = 1.06
+
+                    s = np.std(ratio_cols, axis=0)
+                    self.h_ = (
+                        c / n ** (1 / 5) * np.min([s, self.ranges_ / 1.34], axis=0)
+                    )
+                elif self.kde_type == "scott":
+                    c = 0.9
+
+                    s = np.std(ratio_cols, axis=0)
+                    self.h_ = (
+                        c / n ** (1 / 5) * s
+                    )
+                elif self.kde_type == "sheather-jones":
+                    self.h_ = np.array([FFTKDE(
+                        kernel="gaussian",
+                        bw="ISJ"
+                    ).fit(ratio_cols[:, i]).bw for i in range(self.ratio_scale_num)])
+                elif self.kde_type == "cv":
+
+                    self.h_ = np.array([GridSearchCV(
+                        KernelDensity(),
+                        {"bandwidth": np.linspace(0.1, np.max(ratio_cols[:, i]), 100)},
+                        cv=20
+                    ).fit(ratio_cols[:, i].reshape(-1, 1)).best_estimator_.bandwidth
+                             for i in range(self.ratio_scale_num)])
+
+                # print(f"H: {self.h_}")
 
         loader = GowerMetricWeights(self)
         if self.weights == "precomputed":
@@ -188,6 +238,7 @@ class GowerMetric:
             self.bin_asym_idx,
             self.ratio_scale_idx,
             self.ratio_scale_normalization,
+            self.ratio_scale_window,
             self.ranges_,
             self.h_,
             self.n_features_in_

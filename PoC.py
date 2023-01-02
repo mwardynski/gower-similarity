@@ -268,7 +268,7 @@ if __name__ == "__main__":
     print(f"Loaded sets: {list(D.data.keys())}")
 
     test_dataset_name = "adult"
-    test_type = "knn_class"
+    test_type = "cluster"
     labeled = True  # if dataset has column labels in same file as columns
 
     ds1 = Dataset(test_dataset_name, test_type, "gower", labeled)
@@ -283,21 +283,23 @@ if __name__ == "__main__":
 
     gower = GowerMetric(
         D.cols_type[ds1.name],
-        "range",
+        ratio_scale_normalization="iqr",
+        ratio_scale_window="kde",
+        kde_type="cv"
         # weights="cpcc",
         # precomputed_weights_file="gower_metric_saved_weights/saved_weights_quakes.csv",
     )
 
-    gower_2 = GowerMetric(
-        D.cols_type[ds1.name],
-        "iqr",
-        # weights="cpcc"
-    )
-
-    gower_3 = GowerMetric(
-        D.cols_type[ds1.name],
-        "kde"
-    )
+    # gower_2 = GowerMetric(
+    #     D.cols_type[ds1.name],
+    #     "iqr",
+    #     # weights="cpcc"
+    # )
+    #
+    # gower_3 = GowerMetric(
+    #     D.cols_type[ds1.name],
+    #     "kde"
+    # )
 
     print(
         f"Dataset: {test_dataset_name}"
