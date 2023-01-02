@@ -1,11 +1,20 @@
-from typing import Optional, Union
+import os.path
+from pathlib import Path
+from typing import List, Optional, Union
 
 import numpy as np
 from numba import njit, prange
+from scipy.cluster.hierarchy import (
+    linkage,
+    cophenet,
+    fcluster,
+)
+from sklearn.metrics import silhouette_score
+from scipy.optimize import minimize
+from scipy.spatial.distance import pdist
 from scipy.stats import iqr
 
 from utils import DataType
-from weights import GowerMetricWeights
 
 
 @njit
@@ -85,7 +94,7 @@ def gower_metric_call_func(vector_1: np.ndarray,
     return distance
 
 
-class GowerMetric:
+class GowerMetricDummy:
     def __init__(
         self,
         dtypes: np.array,
@@ -213,4 +222,150 @@ def _init_weights(k, n_features_in_):
     )
 
 
+class GowerMetricWeights:
+    def __init__(
+        self,
+        gower,
+        _cpcc_threshold=None,
+        _save_computed_weights=True,
+    ):
+        self.gower = gower
+        self._cpcc_threshold = _cpcc_threshold
+        self._save_computed_weights = _save_computed_weights
 
+        self.S: np.ndarray  # n_features_in x X.size x X.size matrix for cpcc derivative
+
+        self._x: np.ndarray  # distance matrix for current iteration
+        self._Z: np.ndarray  # linkage for current iteration
+
+    # Distance in respect to kth column
+    def _S_k(self, vector_1: np.ndarray, vector_2: np.ndarray, k: np.int64):
+        bit_mask = np.zeros(vector_1.size)
+        bit_mask[k] = 1
+
+        return self.gower(vector_1 * bit_mask, vector_2 * bit_mask)
+
+    def _cpcc(self, weights, X, t=None, pbar=None):
+
+        self.gower.weights = weights
+        self._x = pdist(X, metric=self.gower)
+
+        self._Z = linkage(self._x, method="average", metric=self.gower)
+        return -cophenet(self._Z, self._x)[0]
+
+    def _cophenetic_dist(self, x):
+        Z = linkage(x, method="average", metric=self.gower)
+        return cophenet(Z, x)
+
+    # Jacobian for cpcc
+    def _cpcc_jac(self, weights, X, t):
+        x_ = np.average(self._x)
+        t_ = np.average(t)
+
+        a = self._x - x_
+        b = t - t_
+
+        factor = (b - a * np.sum(a * b) / np.sum(np.power(a, 2))) / np.sqrt(
+            np.sum(np.power(a, 2)) * np.sum(np.power(b, 2))
+        )
+        res = -np.sum(self.S * factor, axis=1)
+
+        return res
+
+    def select_weights(self, X):
+        number_of_initial_weights = 10
+        initial_weights = _init_weights(number_of_initial_weights, self.gower.n_features_in_)
+
+        # Every set of initial weights has same ratio, but different scale,
+        # so distance matrix init_S will be same for every set, and so will be cophenetic distance
+        init_S = pdist(X, metric=self.gower)
+        init_cophet_dist = self._cophenetic_dist(init_S)
+
+        initial_weights_scores = [
+            init_cophet_dist for _ in range(number_of_initial_weights)
+        ]
+
+        best_weights = (0.0,)
+
+        # We calculate self.S at the beginning, because it will not change in the process
+        self.S = np.array(
+            [
+                pdist(X, metric=self._S_k, k=k)
+                for k in prange(self.gower.n_features_in_)
+            ]
+        )
+
+        # 'maxiter' option doesn't work for some reason
+        # Issue was addressed on GitHub, but from what I saw there's no solution.
+        for i in range(number_of_initial_weights):
+            print(f"{i} set of weights")
+            self.gower.weights = initial_weights[i]
+            opt_weights = minimize(
+                self._cpcc,
+                self.gower.weights,
+                args=(X, initial_weights_scores[i][1]),
+                method="L-BFGS-B",
+                jac=self._cpcc_jac,
+                options={"maxiter": 20},
+                bounds=((0, 1) for _ in range(self.gower.n_features_in_)),
+            )
+
+            # if we found better set of weights
+            if opt_weights.fun < best_weights[0]:
+                best_weights = (opt_weights.fun, opt_weights.x)
+
+            # check for satisfying cpcc_threshold
+            if (
+                self._cpcc_threshold is not None
+                and best_weights[0] < -self._cpcc_threshold
+            ):
+                break
+
+        self.gower.weights = best_weights[1]
+        self.gower.weights /= np.sum(self.gower.weights)
+
+        if self._save_computed_weights:
+            self._save_weights()
+
+    # TODO - to delete in final version. Keep for now for convenience.
+    def load_weights(self, file_name: str):
+        self.gower.weights = np.loadtxt(
+            file_name, delimiter=",", dtype=np.float64
+        )
+
+    def _save_weights(self):
+        weights_dir_name = (
+            str(Path().absolute()) + "\\gower_metric_saved_weights"
+        )
+        if not os.path.exists(weights_dir_name):
+            os.mkdir(weights_dir_name)
+
+        rand_id = np.random.randint(0, 100000)
+        # converted_weights = np.asarray([list(self.gower.weights)])
+        dest_file_name = (
+            weights_dir_name + "\\saved_weights_" + str(rand_id) + ".csv"
+        )
+        np.savetxt(dest_file_name, self.gower.weights, delimiter=",")
+        print(f"Weights saved in {dest_file_name}")
+
+    def select_number_of_clusters(self, X):
+        Z = linkage(X, method="average", metric=self.gower)
+
+        # So scores[i] refers to score for max i clusters
+        scores = [0.0, 0.0, 0.0]
+
+        for i in range(3, 10):
+            pred_labels = fcluster(Z, t=i, criterion="maxclust")
+            if len(np.unique(pred_labels)) > 1:
+                scores.append(
+                    silhouette_score(X, pred_labels, metric=self.gower)
+                )
+            else:
+                scores.append(0.0)
+        scores = np.array(scores)
+
+        self.gower.number_of_clusters_ = np.argmax(scores)
+
+        # X_values = np.linspace(3, 10, 7)
+        # plt.plot(X_values, scores[3:])
+        # plt.show()

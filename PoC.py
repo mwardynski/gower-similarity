@@ -2,13 +2,11 @@ import os.path
 import timeit
 from os import listdir
 from os.path import isfile
-from pathlib import Path
-from typing import List, Optional
 
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import numpy as np
-import sklearn.utils.validation
+import pandas as pd
 from scipy.spatial.distance import pdist
 from scipy.cluster.hierarchy import (
     linkage,
@@ -22,35 +20,11 @@ from sklearn.metrics import (
     davies_bouldin_score,
 )
 from sklearn.model_selection import train_test_split
-from sklearn.neighbors import KNeighborsClassifier, NearestNeighbors
+from sklearn.neighbors import KNeighborsClassifier, NearestNeighbors, KNeighborsRegressor
 from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 
 from utils import Dataset, DataType, Data
 from GowerMetric import GowerMetric
-
-
-def bin_dist(vector_1: np.ndarray, vector_2: np.ndarray):
-    # bool array for not-null values
-    non_null_map_1 = vector_1 != -1
-    non_null_map_2 = vector_2 != -1
-    non_null_map = non_null_map_1 & non_null_map_2
-
-    # vec_1 and vec_2 with only not-null values
-    non_null_1 = vector_1[non_null_map]
-    non_null_2 = vector_2[non_null_map]
-
-    # count null values
-    null_count = (~non_null_map_1 | ~non_null_map_2).sum()
-
-    # return sum of dissimilarities between vec_1 and vec_2 + number of unique null fields
-    return ((~np.isclose(non_null_1, non_null_2)).sum() + null_count) / len(
-        vector_1
-    )
-
-
-# Simple function for calculating dissimilarity matrix
-def make_matrix(data_frame: np.ndarray, metric) -> np.array:
-    return pdist(data_frame, metric)
 
 
 def cpcc(X, Z):
@@ -62,24 +36,6 @@ def ioa(O, P):
     return 1 - np.sum(np.power(P - O, 2)) / np.sum(
         np.power(np.absolute(P - O_) + np.absolute(O - O_), 2,)
     )
-
-
-def silhouette_test(Z, df, metric_func):
-    scores = []
-
-    for i in range(3, 10):
-        pred_labels = fcluster(Z, t=i, criterion="maxclust")
-        if len(np.unique(pred_labels)) > 1:
-            scores.append(
-                silhouette_score(df, pred_labels, metric=metric_func)
-            )
-        else:
-            scores.append(0.0)
-
-    scores = np.array(scores)
-    X_values = np.linspace(3, 10, 7)
-    plt.plot(X_values, scores)
-    plt.show()
 
 
 def pca_test(df: np.ndarray, y: np.ndarray = None, labels=None):
@@ -131,109 +87,93 @@ def pca_test(df: np.ndarray, y: np.ndarray = None, labels=None):
     plt.show()
 
 
+def plot_clustering(X, y, predicted_labels):
+    n_labels = int(np.max(predicted_labels))
+    predicted_labels = np.ndarray.astype(predicted_labels, dtype=int)
+
+    colors = ["red", "green", "blue", "orange", "purple"] + list(mcolors.CSS4_COLORS.values())
+    pca = PCA(n_components=2)
+    y = y.reshape((y.shape[0], 1))
+    X = np.concatenate((X, y), axis=1)
+    X = pca.fit_transform(X)
+    X = X.reshape((X.shape[0], X.shape[1]))
+
+    labeled_points = [[] for _ in range(n_labels+1)]
+    for i in range(len(X)):
+        labeled_points[predicted_labels[i]].append(X[i])
+
+    for i in range(n_labels+1):
+        plt.scatter([point[0] for point in labeled_points[i]], [point[1] for point in labeled_points[i]],
+                    color=colors[i], label=f"Class {i}")
+
+    plt.title("KNN Classification")
+    plt.legend()
+    plt.show()
+
+
 def mertic_test(
     gower, dataset: Dataset, data: Data, number_of_records: int = None,
 ):
     if number_of_records is None:
         number_of_records = len(data.data[dataset.name])
 
+    # -------------------------- Data preprocessing --------------------------
     df = np.copy(data.data[dataset.name][:number_of_records])
     df = fill_na(df)
 
     if dataset.metric == "gower":
         metric_func = gower
-    elif dataset.metric == "bin":
-        metric_func = bin_dist
     else:
         metric_func = dataset.metric
+
+    enc = OrdinalEncoder(
+        categories="auto",
+        dtype=np.float64,
+        handle_unknown="use_encoded_value",
+        unknown_value=np.nan,
+        encoded_missing_value=np.nan
+    )
+
+    # Categorical Nominal columns
+    cat_nom_cols = [
+        i
+        for i in range(len(gower.dtypes))
+        if gower.dtypes[i] == DataType.CATEGORICAL_NOMINAL
+    ]
+
+    if dataset.labeled:
+        cat_nom_cols += [len(gower.dtypes)]
+
+    if len(cat_nom_cols) != 0:
+        fit_df = df[:, cat_nom_cols]
+
+        fit_df = pd.DataFrame(fit_df)
+        enc.fit(fit_df)
+        fit_df = enc.transform(fit_df)
+
+        df[:, cat_nom_cols] = fit_df
+
+    y = None
+    if dataset.labeled:
+        y = df[:, -1]
+        df = df[:, :-1]
+        y = np.ndarray.astype(y, dtype=np.float64)
+
+    df = np.ndarray.astype(df, dtype=np.float64)
+    # ------------------------------------------------------------------------
+
+    start = timeit.default_timer()
+    if dataset.metric == "gower":
+        gower.fit(df)
+    print(f"Performing fit: {timeit.default_timer() - start}s")
 
     print(
         f"----------------- Test using {dataset.metric} metric -----------------"
     )
-    if dataset.task == "bin" or dataset.task == "multivar":
-        enc = OrdinalEncoder()
-        enc.set_params(encoded_missing_value=-1)
 
-        cat_nom_cols = [
-            i
-            for i in range(len(gower.dtypes))
-            if gower.dtypes[i] == DataType.CATEGORICAL_NOMINAL
-        ] + [len(gower.dtypes)]
-        fit_df = df[:, cat_nom_cols]
-
-        enc.fit(fit_df)
-        fit_df = enc.transform(fit_df)
-        df[:, cat_nom_cols] = fit_df
-
-        y = df[:, -1]
-        df = df[:, :-1]
-
-        df = np.ndarray.astype(df, dtype=np.float64)
-        y = np.ndarray.astype(y, dtype=np.float64)
-
-        train_set, test_set, y_train_set, y_test_set = train_test_split(
-            df, y, test_size=0.2
-        )
-
-        if dataset.metric == "gower":
-            gower.fit(train_set)
-
-        knn = KNeighborsClassifier(n_neighbors=5, metric=metric_func)
-        knn.fit(train_set, y_train_set)
-
-        score = knn.score(test_set, y_test_set)
-
-        print(f"KNN score: {score}")
-        return score
-
-    elif dataset.task == "reg":
-        train_set, test_set = train_test_split(df, test_size=0.3)
-
-        gower.fit(train_set)
-
-        knn = NearestNeighbors(n_neighbors=5, metric=metric_func)
-        knn.fit(train_set)
-        print(knn.kneighbors(test_set, 5, False))
-
-    elif dataset.task == "cluster":
-        enc = OrdinalEncoder()
-        enc.set_params(encoded_missing_value=-1)
-
-        # Categorical Nominal columns
-        cat_nom_cols = [
-            i
-            for i in range(len(gower.dtypes))
-            if gower.dtypes[i] == DataType.CATEGORICAL_NOMINAL
-        ]
-
-        if dataset.labeled:
-            cat_nom_cols += [len(gower.dtypes)]
-
-        if len(cat_nom_cols) != 0:
-            fit_df = df[:, cat_nom_cols]
-
-            enc.fit(fit_df)
-            fit_df = enc.transform(fit_df)
-            df[:, cat_nom_cols] = fit_df
-
-        y = None
-        if dataset.labeled:
-            y = df[:, -1]
-            df = df[:, :-1]
-            y = np.ndarray.astype(y, dtype=np.float64)
-
-        df = np.ndarray.astype(df, dtype=np.float64)
-
-        start = timeit.default_timer()
-        if dataset.metric == "gower":
-            gower.fit(df)
-        print(f"Performing fit: {timeit.default_timer() - start}")
-
+    if dataset.task == "cluster":
         # Hierarchical Clustering and dendrogram (without plotting)
         Z = linkage(df, method="average", metric=metric_func)
-        # plt.figure()
-        # dn = dendrogram(Z, no_plot=True)
-        # plt.show()
 
         num_of_clusters = (
             gower.number_of_clusters_ if dataset.metric == "gower" and gower.weights is not None else 3
@@ -257,10 +197,26 @@ def mertic_test(
             print(f"Silhouette: {s}")
             print(f"Calinski-Harabasz: {cal_halab}")
             print(f"Davies-Bouldin index: {dav_bould}")
-            # silhouette_test(Z, df, metric_func)
-            # pca_test(df, y, pred_labels)
         else:
             print("Predicted labels = 1!")
+
+    elif dataset.task == "knn_class":
+        if y is None:
+            print("Dataset without labels!")
+            exit(-1)
+
+        X_train, X_test, y_train, y_test = train_test_split(df, y, test_size=0.2)
+
+        knn = KNeighborsClassifier(
+            n_neighbors=5,
+            algorithm="auto",
+            metric=metric_func
+        )
+
+        knn.fit(X_train, y_train)
+        print(f"KNN Score: {knn.score(X_test, y_test)}")
+        predicted_labels = knn.predict(X_test)
+        plot_clustering(X_test, y_test, predicted_labels)
 
     else:
         print("Wrong task!")
@@ -282,11 +238,6 @@ def load_dataset(dataset_name: str):
 
 def fill_na(data: np.array):
     data[data == ""] = -1
-    return data
-
-
-def fill_nan(data: np.array):
-    data[np.isnan(data)] = -1
     return data
 
 
@@ -317,7 +268,7 @@ if __name__ == "__main__":
     print(f"Loaded sets: {list(D.data.keys())}")
 
     test_dataset_name = "adult"
-    test_type = "cluster"
+    test_type = "knn_class"
     labeled = True  # if dataset has column labels in same file as columns
 
     ds1 = Dataset(test_dataset_name, test_type, "gower", labeled)
@@ -332,21 +283,43 @@ if __name__ == "__main__":
 
     gower = GowerMetric(
         D.cols_type[ds1.name],
-        "kde",
+        "range",
         # weights="cpcc",
         # precomputed_weights_file="gower_metric_saved_weights/saved_weights_quakes.csv",
     )
 
+    gower_2 = GowerMetric(
+        D.cols_type[ds1.name],
+        "iqr",
+        # weights="cpcc"
+    )
+
+    gower_3 = GowerMetric(
+        D.cols_type[ds1.name],
+        "kde"
+    )
+
     print(
-        "=========================== Vectorized ============================="
+        f"Dataset: {test_dataset_name}"
+    )
+
+    print(
+        "=========================== Range ============================="
     )
     mertic_test(
         gower, ds1, D, n,
     )
 
-    # mertic_test(ds2, D, n)
-    # mertic_test(ds3, D, n)
-    # mertic_test(ds4, D, n)
-    # mertic_test(ds5, D, n)
-    # mertic_test(ds6, D, n)
-    # mertic_test(ds7, D, n)
+    # print(
+    #     "=========================== IQR ============================="
+    # )
+    # mertic_test(
+    #     gower_2, ds1, D, n,
+    # )
+    #
+    # print(
+    #     "=========================== KDE ============================="
+    # )
+    # mertic_test(
+    #     gower_3, ds1, D, n,
+    # )

@@ -6,6 +6,7 @@ from scipy.spatial.distance import pdist, squareform
 from GowerMetric import GowerMetric
 from utils import DataType
 
+import pandas as pd
 
 def test_cat_nom():
     data = np.array(
@@ -216,10 +217,10 @@ def test_check_non_zero_on_diagonal():
 
 
 def test_nan_values():
-    data = np.array(
+    data = pd.DataFrame(
         [
-            ['Poland', 21, 5, 10000, 0, 1, 1],
-            ['Germany', 50, 4, 20000, 0, np.nan, np.nan],
+            [np.nan, 21, 5, 10000, 0, 1, 1],
+            [np.nan, 50, 4, 20000, 0, np.nan, np.nan],
             ['Poland', 32, 3, np.nan, 0, 0, 0],
             ['France', np.nan, 4, 25000, 0, 1, 1],
             ['Denmark', 45, 4, 23000, 0, 1, 1]
@@ -243,11 +244,17 @@ def test_nan_values():
         )
     )
 
-    enc = OrdinalEncoder()
-    enc.set_params(encoded_missing_value=-1)
-    enc.fit(data[:, [0]])
-    data[:, [0]] = enc.transform(data[:, [0]])
-    data = np.ndarray.astype(data, dtype=np.float64)
+    enc = OrdinalEncoder(
+        categories="auto",
+        dtype=np.float64,
+        handle_unknown="use_encoded_value",
+        unknown_value=np.nan,
+        encoded_missing_value=np.nan
+    )
+    enc.fit(data.iloc[:, [0]])
+    data.iloc[:, [0]] = enc.transform(data.iloc[:, [0]])
+    data = data.to_numpy(dtype=np.float64)
+    # print('\n', data)
 
     gower.fit(data)
     res = gower(data[0], data[1])
