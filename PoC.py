@@ -20,7 +20,11 @@ from sklearn.metrics import (
     davies_bouldin_score,
 )
 from sklearn.model_selection import train_test_split
-from sklearn.neighbors import KNeighborsClassifier, NearestNeighbors, KNeighborsRegressor
+from sklearn.neighbors import (
+    KNeighborsClassifier,
+    NearestNeighbors,
+    KNeighborsRegressor,
+)
 from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 
 from utils import Dataset, DataType, Data
@@ -34,7 +38,10 @@ def cpcc(X, Z):
 def ioa(O, P):
     O_ = np.average(O)
     return 1 - np.sum(np.power(P - O, 2)) / np.sum(
-        np.power(np.absolute(P - O_) + np.absolute(O - O_), 2,)
+        np.power(
+            np.absolute(P - O_) + np.absolute(O - O_),
+            2,
+        )
     )
 
 
@@ -91,28 +98,37 @@ def plot_clustering(X, y, predicted_labels):
     n_labels = int(np.max(predicted_labels))
     predicted_labels = np.ndarray.astype(predicted_labels, dtype=int)
 
-    colors = ["red", "green", "blue", "orange", "purple"] + list(mcolors.CSS4_COLORS.values())
+    colors = ["red", "green", "blue", "orange", "purple"] + list(
+        mcolors.CSS4_COLORS.values()
+    )
     pca = PCA(n_components=2)
     y = y.reshape((y.shape[0], 1))
     X = np.concatenate((X, y), axis=1)
     X = pca.fit_transform(X)
     X = X.reshape((X.shape[0], X.shape[1]))
 
-    labeled_points = [[] for _ in range(n_labels+1)]
+    labeled_points = [[] for _ in range(n_labels + 1)]
     for i in range(len(X)):
         labeled_points[predicted_labels[i]].append(X[i])
 
-    for i in range(n_labels+1):
-        plt.scatter([point[0] for point in labeled_points[i]], [point[1] for point in labeled_points[i]],
-                    color=colors[i], label=f"Class {i}")
+    for i in range(n_labels + 1):
+        plt.scatter(
+            [point[0] for point in labeled_points[i]],
+            [point[1] for point in labeled_points[i]],
+            color=colors[i],
+            label=f"Class {i}",
+        )
 
     plt.title("KNN Classification")
     plt.legend()
     plt.show()
 
 
-def mertic_test(
-    gower, dataset: Dataset, data: Data, number_of_records: int = None,
+def metric_test(
+    gower,
+    dataset: Dataset,
+    data: Data,
+    number_of_records: int = None,
 ):
     if number_of_records is None:
         number_of_records = len(data.data[dataset.name])
@@ -131,7 +147,7 @@ def mertic_test(
         dtype=np.float64,
         handle_unknown="use_encoded_value",
         unknown_value=np.nan,
-        encoded_missing_value=np.nan
+        encoded_missing_value=np.nan,
     )
 
     # Categorical Nominal columns
@@ -165,23 +181,21 @@ def mertic_test(
     start = timeit.default_timer()
     if dataset.metric == "gower":
         gower.fit(df)
-    print(f"Performing fit: {timeit.default_timer() - start}s")
-
-    print(
-        f"----------------- Test using {dataset.metric} metric -----------------"
-    )
+    print(f"Performing fit: {timeit.default_timer() - start} s")
 
     if dataset.task == "cluster":
         # Hierarchical Clustering and dendrogram (without plotting)
         Z = linkage(df, method="average", metric=metric_func)
 
         num_of_clusters = (
-            gower.number_of_clusters_ if dataset.metric == "gower" and gower.weights is not None else 3
+            gower.number_of_clusters_
+            if dataset.metric == "gower" and gower.weights is not None
+            else 3
         )
 
         start = timeit.default_timer()
         dist_x = pdist(df, metric=metric_func)
-        print(f"Calculating dist matrix: {timeit.default_timer() - start}")
+        print(f"Calculating dist matrix: {timeit.default_timer() - start} s")
         pred_labels = fcluster(Z, t=num_of_clusters, criterion="maxclust")
 
         c, cophenetic_distances = cpcc(dist_x, Z)
@@ -197,6 +211,7 @@ def mertic_test(
             print(f"Silhouette: {s}")
             print(f"Calinski-Harabasz: {cal_halab}")
             print(f"Davies-Bouldin index: {dav_bould}")
+            return c, i, s
         else:
             print("Predicted labels = 1!")
 
@@ -205,12 +220,12 @@ def mertic_test(
             print("Dataset without labels!")
             exit(-1)
 
-        X_train, X_test, y_train, y_test = train_test_split(df, y, test_size=0.2)
+        X_train, X_test, y_train, y_test = train_test_split(
+            df, y, test_size=0.2
+        )
 
         knn = KNeighborsClassifier(
-            n_neighbors=5,
-            algorithm="auto",
-            metric=metric_func
+            n_neighbors=5, algorithm="auto", metric=metric_func
         )
 
         knn.fit(X_train, y_train)
@@ -285,43 +300,17 @@ if __name__ == "__main__":
         D.cols_type[ds1.name],
         ratio_scale_normalization="iqr",
         ratio_scale_window="kde",
-        kde_type="cv"
+        kde_type="cv_grid"
         # weights="cpcc",
         # precomputed_weights_file="gower_metric_saved_weights/saved_weights_quakes.csv",
     )
 
-    # gower_2 = GowerMetric(
-    #     D.cols_type[ds1.name],
-    #     "iqr",
-    #     # weights="cpcc"
-    # )
-    #
-    # gower_3 = GowerMetric(
-    #     D.cols_type[ds1.name],
-    #     "kde"
-    # )
+    print(f"Dataset: {test_dataset_name}")
 
-    print(
-        f"Dataset: {test_dataset_name}"
+    print("=========================== KDE =============================")
+    metric_test(
+        gower,
+        ds1,
+        D,
+        n,
     )
-
-    print(
-        "=========================== Range ============================="
-    )
-    mertic_test(
-        gower, ds1, D, n,
-    )
-
-    # print(
-    #     "=========================== IQR ============================="
-    # )
-    # mertic_test(
-    #     gower_2, ds1, D, n,
-    # )
-    #
-    # print(
-    #     "=========================== KDE ============================="
-    # )
-    # mertic_test(
-    #     gower_3, ds1, D, n,
-    # )

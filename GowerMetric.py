@@ -1,9 +1,11 @@
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 import matplotlib.pyplot as plt
 import numpy as np
+import optuna
 from KDEpy import FFTKDE
-from numba import njit, prange
+from numba import njit
+from optuna.integration import OptunaSearchCV
 from scipy.stats import iqr
 from sklearn.model_selection import GridSearchCV
 from sklearn.neighbors import KernelDensity
@@ -13,20 +15,22 @@ from weights import GowerMetricWeights
 
 
 @njit
-def gower_metric_call_func(vector_1: np.ndarray,
-                           vector_2: np.ndarray,
-                           weights: np.ndarray,
-                           cat_nom_num: int,
-                           bin_asym_num: int,
-                           ratio_scale_num: int,
-                           cat_nom_idx: np.ndarray,
-                           bin_asym_idx: np.ndarray,
-                           ratio_scale_idx: np.ndarray,
-                           ratio_scale_normalization: str,
-                           ratio_scale_window: str,
-                           ranges_: np.ndarray,
-                           h_: np.ndarray,
-                           n_features_in_: int):
+def gower_metric_call_func(
+    vector_1: np.ndarray,
+    vector_2: np.ndarray,
+    weights: np.ndarray,
+    cat_nom_num: int,
+    bin_asym_num: int,
+    ratio_scale_num: int,
+    cat_nom_idx: np.ndarray,
+    bin_asym_idx: np.ndarray,
+    ratio_scale_idx: np.ndarray,
+    ratio_scale_normalization: str,
+    ratio_scale_window: str,
+    ranges_: np.ndarray,
+    h_: np.ndarray,
+    n_features_in_: int,
+):
     assert n_features_in_ == len(vector_1)
     assert n_features_in_ == len(vector_2)
 
@@ -49,8 +53,12 @@ def gower_metric_call_func(vector_1: np.ndarray,
         bin_asym_cols_2 = vector_2[bin_asym_idx]
 
         # 0 if x1 == x2 == 1 or x1 != x2, so it's same as 1 if x1 == x2 == 0
-        bin_asym_dist = np.asarray((bin_asym_cols_1 == 0) & (bin_asym_cols_2 == 0), dtype=np.float64)
-        bin_asym_dist[np.isnan(bin_asym_cols_1) | np.isnan(bin_asym_cols_2)] = 1.0
+        bin_asym_dist = np.asarray(
+            (bin_asym_cols_1 == 0) & (bin_asym_cols_2 == 0), dtype=np.float64
+        )
+        bin_asym_dist[
+            np.isnan(bin_asym_cols_1) | np.isnan(bin_asym_cols_2)
+        ] = 1.0
 
         if weights is not None:
             bin_asym_dist = bin_asym_dist @ weights[bin_asym_idx]
@@ -71,7 +79,9 @@ def gower_metric_call_func(vector_1: np.ndarray,
             below_threshold = ratio_dist <= h_
 
         ratio_dist = ratio_dist / ranges_
-        ratio_dist[np.isnan(ratio_scale_cols_1) | np.isnan(ratio_scale_cols_2)] = 1.0
+        ratio_dist[
+            np.isnan(ratio_scale_cols_1) | np.isnan(ratio_scale_cols_2)
+        ] = 1.0
 
         if ratio_scale_normalization == "iqr":
             ratio_dist[above_threshold] = 1.0
@@ -103,7 +113,7 @@ class GowerMetric:
         kde_type: Optional[str] = None,
         weights: Optional[Union[list, str, np.ndarray]] = None,
         precomputed_weights_file: Optional[str] = None,
-        verbose: int = 0
+        verbose: int = 0,
     ):
         assert (
             weights is None
@@ -116,14 +126,11 @@ class GowerMetric:
             ratio_scale_normalization == "range"
             or ratio_scale_normalization == "iqr"
         )
-        assert (
-            ratio_scale_window is None
-            or ratio_scale_window == "kde"
-            or ratio_scale_window == "knn"
-        )
+        assert ratio_scale_window is None or ratio_scale_window == "kde"
         assert (
             kde_type is None
-            or kde_type == "cv"
+            or kde_type == "cv_grid"
+            or kde_type == "cv_optuna"
             or kde_type == "silverman"
             or kde_type == "scott"
             or kde_type == "sheather-jones"
@@ -179,41 +186,79 @@ class GowerMetric:
                     ratio_cols[:, zero_values_mask], axis=0
                 )
 
+            n = X.shape[0]
+
             # h_t parameter
             if self.ratio_scale_window == "kde":
-                n = X.shape[0]
-
                 if self.kde_type == "silverman":
                     c = 1.06
 
                     s = np.std(ratio_cols, axis=0)
                     self.h_ = (
-                        c / n ** (1 / 5) * np.min([s, self.ranges_ / 1.34], axis=0)
+                        c
+                        / n ** (1 / 5)
+                        * np.min([s, self.ranges_ / 1.34], axis=0)
                     )
                 elif self.kde_type == "scott":
                     c = 0.9
 
                     s = np.std(ratio_cols, axis=0)
-                    self.h_ = (
-                        c / n ** (1 / 5) * s
-                    )
+                    self.h_ = c / n ** (1 / 5) * s
                 elif self.kde_type == "sheather-jones":
-                    self.h_ = np.array([FFTKDE(
-                        kernel="gaussian",
-                        bw="ISJ"
-                    ).fit(ratio_cols[:, i]).bw for i in range(self.ratio_scale_num)])
-                elif self.kde_type == "cv":
+                    try:
+                        self.h_ = np.array(
+                            [
+                                FFTKDE(kernel="gaussian", bw="ISJ")
+                                .fit(ratio_cols[:, i])
+                                .bw
+                                for i in range(self.ratio_scale_num)
+                            ]
+                        )
+                    except ValueError:
+                        print(
+                            "FFTKDE resulted in failure - "
+                            "Crashed with error: ValueError: Root finding did not converge. Need more data. - "
+                            "Repeating fit using kde_type == 'silverman'"
+                        )
 
-                    self.h_ = np.array([GridSearchCV(
-                        KernelDensity(),
-                        {"bandwidth": np.linspace(0.1, np.max(ratio_cols[:, i]), 100)},
-                        cv=20
-                    ).fit(ratio_cols[:, i].reshape(-1, 1)).best_estimator_.bandwidth
-                             for i in range(self.ratio_scale_num)])
+                        # Try to fit using silverman instead
+                        self.kde_type = "silverman"
+                        self.fit(X)
+                        return
+                elif self.kde_type == "cv_grid":
+                    self.h_ = np.array(
+                        [
+                            GridSearchCV(
+                                KernelDensity(),
+                                {"bandwidth": np.linspace(0.1, 1e06, 100)},
+                                cv=20,
+                            )
+                            .fit(ratio_cols[:, i].reshape(-1, 1))
+                            .best_estimator_.bandwidth
+                            for i in range(self.ratio_scale_num)
+                        ]
+                    )
+                elif self.kde_type == "cv_optuna":
+                    self.h_ = []
+                    for i in range(self.ratio_scale_num):
+                        clf = KernelDensity()
+                        param_distributions = {
+                            "bandwidth": optuna.distributions.FloatDistribution(
+                                1e-08, 1e06, log=True
+                            )
+                        }
+                        optuna_search = OptunaSearchCV(
+                            clf,
+                            param_distributions,
+                            cv=20,
+                            n_trials=100,
+                            verbose=0,
+                        )
+                        optuna_search.fit(ratio_cols[:, i].reshape(-1, 1))
+                        self.h_.append(optuna_search.best_estimator_.bandwidth)
+                    self.h_ = np.array(self.h_, dtype=np.float64)
 
-                # print(f"H: {self.h_}")
-
-        loader = GowerMetricWeights(self)
+        loader = GowerMetricWeights(self, _save_computed_weights=False)
         if self.weights == "precomputed":
             loader.load_weights(self.precomputed_weights_file)
         elif self.weights == "cpcc":
@@ -224,7 +269,9 @@ class GowerMetric:
             loader.select_number_of_clusters(X)
 
     def __call__(
-        self, vector_1: np.ndarray, vector_2: np.ndarray,
+        self,
+        vector_1: np.ndarray,
+        vector_2: np.ndarray,
     ) -> np.float64:
 
         return gower_metric_call_func(
@@ -241,27 +288,5 @@ class GowerMetric:
             self.ratio_scale_window,
             self.ranges_,
             self.h_,
-            self.n_features_in_
+            self.n_features_in_,
         )
-
-
-# init with k sets of weights
-@njit(parallel=True)
-def _init_weights(k, n_features_in_):
-    return np.array(
-        [
-            [
-                np.random.uniform(
-                    1 / (3 * n_features_in_),
-                    1
-                    - (n_features_in_ - 1)
-                    / (3 * n_features_in_),
-                )
-                for _ in prange(n_features_in_)
-            ]
-            for _ in prange(k)
-        ]
-    )
-
-
-
