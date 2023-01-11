@@ -30,16 +30,29 @@ def gower_metric_call_func(
     ranges_: np.ndarray,
     h_: np.ndarray,
     n_features_in_: int,
+    nan_values_handling: str
 ):
     assert n_features_in_ == len(vector_1)
     assert n_features_in_ == len(vector_2)
+
+    cat_nom_ignored_num, bin_asym_ignored_num, ratio_scale_ignored_num = 0, 0, 0
 
     if cat_nom_num > 0:
         cat_nom_cols_1 = vector_1[cat_nom_idx]
         cat_nom_cols_2 = vector_2[cat_nom_idx]
 
         cat_nom_dist = 1.0 - (cat_nom_cols_1 == cat_nom_cols_2)
-        cat_nom_dist[np.isnan(cat_nom_cols_1) | np.isnan(cat_nom_cols_2)] = 1.0
+
+        # Handling nan values
+        if nan_values_handling == "raise":
+            if (np.isnan(cat_nom_cols_1) | np.isnan(cat_nom_cols_2)).any():
+                raise ValueError
+        elif nan_values_handling == "ignore":
+            cat_nom_ignored = np.isnan(cat_nom_cols_1) | np.isnan(cat_nom_cols_2)
+            cat_nom_ignored_num = np.sum(cat_nom_ignored)
+            cat_nom_dist[cat_nom_ignored] = 0.0
+        elif nan_values_handling == "mas_dist":
+            cat_nom_dist[np.isnan(cat_nom_cols_1) | np.isnan(cat_nom_cols_2)] = 1.0
 
         if weights is not None:
             cat_nom_dist = cat_nom_dist @ weights[cat_nom_idx]
@@ -56,9 +69,19 @@ def gower_metric_call_func(
         bin_asym_dist = np.asarray(
             (bin_asym_cols_1 == 0) & (bin_asym_cols_2 == 0), dtype=np.float64
         )
-        bin_asym_dist[
-            np.isnan(bin_asym_cols_1) | np.isnan(bin_asym_cols_2)
-        ] = 1.0
+
+        # Handling nan values
+        if nan_values_handling == "raise":
+            if (np.isnan(bin_asym_cols_1) | np.isnan(bin_asym_cols_2)).any():
+                raise ValueError
+        elif nan_values_handling == "ignore":
+            bin_asym_ignored = np.isnan(bin_asym_cols_1) | np.isnan(bin_asym_cols_2)
+            bin_asym_ignored_num = np.sum(bin_asym_ignored)
+            bin_asym_dist[bin_asym_ignored] = 0.0
+        elif nan_values_handling == "mas_dist":
+            bin_asym_dist[
+                np.isnan(bin_asym_cols_1) | np.isnan(bin_asym_cols_2)
+            ] = 1.0
 
         if weights is not None:
             bin_asym_dist = bin_asym_dist @ weights[bin_asym_idx]
@@ -79,9 +102,19 @@ def gower_metric_call_func(
             below_threshold = ratio_dist <= h_
 
         ratio_dist = ratio_dist / ranges_
-        ratio_dist[
-            np.isnan(ratio_scale_cols_1) | np.isnan(ratio_scale_cols_2)
-        ] = 1.0
+
+        # Handling nan values
+        if nan_values_handling == "raise":
+            if (np.isnan(ratio_scale_cols_1) | np.isnan(ratio_scale_cols_2)).any():
+                raise ValueError
+        elif nan_values_handling == "ignore":
+            ratio_scale_ignored = np.isnan(ratio_scale_cols_1) | np.isnan(ratio_scale_cols_2)
+            ratio_scale_ignored_num = np.sum(ratio_scale_ignored)
+            ratio_dist[ratio_scale_ignored] = 0.0
+        elif nan_values_handling == "mas_dist":
+            ratio_dist[
+                np.isnan(ratio_scale_cols_1) | np.isnan(ratio_scale_cols_2)
+                ] = 1.0
 
         if ratio_scale_normalization == "iqr":
             ratio_dist[above_threshold] = 1.0
@@ -99,7 +132,7 @@ def gower_metric_call_func(
     distance = cat_nom_dist + bin_asym_dist + ratio_dist
 
     # Normalization
-    distance /= n_features_in_
+    distance /= (n_features_in_ - cat_nom_ignored_num - bin_asym_ignored_num - ratio_scale_ignored_num)
 
     return distance
 
@@ -113,6 +146,7 @@ class GowerMetric:
         kde_type: Optional[str] = None,
         weights: Optional[Union[list, str, np.ndarray]] = None,
         precomputed_weights_file: Optional[str] = None,
+        nan_values_handling: str = "raise",
         verbose: int = 0,
     ):
         assert (
@@ -135,11 +169,17 @@ class GowerMetric:
             or kde_type == "scott"
             or kde_type == "sheather-jones"
         )
+        assert (
+            nan_values_handling == "raise",
+            nan_values_handling == "ignore",
+            nan_values_handling == "max_dist"
+        )
 
         self.dtypes = dtypes  # initialize with np.array of column data types
         self.weights = weights
         self.precomputed_weights_file = precomputed_weights_file
         self.verbose = verbose
+        self.nan_values_handling = nan_values_handling
         self.ranges_: np.ndarray  # values of ranges in .ratio_scale() (iqr or traditional range)
         self.h_: np.ndarray  # h values in .ratio_scale()
         self.n_features_in_: int
@@ -171,6 +211,11 @@ class GowerMetric:
 
             col_mean = np.nanmean(ratio_cols, axis=0)
             nan_indices = np.where(np.isnan(ratio_cols))
+
+            if self.nan_values_handling == "raise":
+                if len(nan_indices) > 0:
+                    raise ValueError
+
             ratio_cols[nan_indices] = np.take(col_mean, nan_indices[1])
 
             # g_t parameter
@@ -289,4 +334,5 @@ class GowerMetric:
             self.ranges_,
             self.h_,
             self.n_features_in_,
+            self.nan_values_handling
         )

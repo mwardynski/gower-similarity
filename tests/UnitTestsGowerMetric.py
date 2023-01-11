@@ -216,7 +216,7 @@ def test_check_non_zero_on_diagonal():
     assert np.sum(np.diagonal(dist_matrix)) == 0
 
 
-def test_nan_values():
+def test_nan_max_dist():
     data = pd.DataFrame(
         [
             [np.nan, 21, 5, 10000, 0, 1, 1],
@@ -260,5 +260,52 @@ def test_nan_values():
     res = gower(data[0], data[1])
 
     assert np.isclose(res, np.sum(dist / ranges) / 7.0)
+
+
+    def test_nan_raise():
+        data = pd.DataFrame(
+            [
+                [np.nan, 21, 5, 10000, 0, 1, 1],
+                [np.nan, 50, 4, 20000, 0, np.nan, np.nan],
+                ['Poland', 32, 3, np.nan, 0, 0, 0],
+                ['France', np.nan, 4, 25000, 0, 1, 1],
+                ['Denmark', 45, 4, 23000, 0, 1, 1]
+            ]
+        )
+
+        # ranges: 29, 2, 15000
+        # dist: 1, 29, 1, 10000, 1, 0, 0
+        ranges = np.array([1, 29, 2, 15000, 1, 1, 1])
+        dist = np.array([1, 29, 1, 10000, 0, 1, 1])
+
+        gower = GowerMetric(
+            dtypes=np.array(
+                [DataType.CATEGORICAL_NOMINAL,
+                 DataType.RATIO_SCALE,
+                 DataType.RATIO_SCALE,
+                 DataType.RATIO_SCALE,
+                 DataType.BINARY_SYMMETRIC,
+                 DataType.BINARY_SYMMETRIC,
+                 DataType.BINARY_ASYMMETRIC]
+            )
+        )
+
+        enc = OrdinalEncoder(
+            categories="auto",
+            dtype=np.float64,
+            handle_unknown="use_encoded_value",
+            unknown_value=np.nan,
+            encoded_missing_value=np.nan
+        )
+        enc.fit(data.iloc[:, [0]])
+        data.iloc[:, [0]] = enc.transform(data.iloc[:, [0]])
+        data = data.to_numpy(dtype=np.float64)
+        # print('\n', data)
+
+        gower.fit(data)
+        res = gower(data[0], data[1])
+
+        assert np.isclose(res, np.sum(dist / ranges) / 7.0)
+
 
 
