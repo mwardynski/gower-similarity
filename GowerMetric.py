@@ -1,14 +1,7 @@
 from typing import Optional, Union, List
 
-import matplotlib.pyplot as plt
 import numpy as np
-import optuna
-from KDEpy import FFTKDE
 from numba import njit
-from optuna.integration import OptunaSearchCV
-from scipy.stats import iqr
-from sklearn.model_selection import GridSearchCV
-from sklearn.neighbors import KernelDensity
 
 from utils import DataType
 from weights import GowerMetricWeights
@@ -223,6 +216,8 @@ class GowerMetric:
                 self.ranges_ = np.ptp(ratio_cols, axis=0)
 
             elif self.ratio_scale_normalization == "iqr":
+                from scipy.stats import iqr
+
                 self.ranges_ = iqr(ratio_cols, axis=0)
 
                 # Needs this check
@@ -250,6 +245,8 @@ class GowerMetric:
                     s = np.std(ratio_cols, axis=0)
                     self.h_ = c / n ** (1 / 5) * s
                 elif self.kde_type == "sheather-jones":
+                    from KDEpy import FFTKDE
+
                     try:
                         self.h_ = np.array(
                             [
@@ -271,6 +268,9 @@ class GowerMetric:
                         self.fit(X)
                         return
                 elif self.kde_type == "cv_grid":
+                    from sklearn.model_selection import GridSearchCV
+                    from sklearn.neighbors import KernelDensity
+
                     self.h_ = np.array(
                         [
                             GridSearchCV(
@@ -284,6 +284,10 @@ class GowerMetric:
                         ]
                     )
                 elif self.kde_type == "cv_optuna":
+                    import optuna
+                    from optuna.integration import OptunaSearchCV
+                    from sklearn.neighbors import KernelDensity
+
                     self.h_ = []
                     for i in range(self.ratio_scale_num):
                         clf = KernelDensity()
