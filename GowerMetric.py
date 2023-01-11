@@ -1,4 +1,4 @@
-from typing import Optional, Union, List
+from typing import Optional, Union
 
 import numpy as np
 from numba import njit
@@ -47,6 +47,8 @@ def gower_metric_call_func(
         elif nan_values_handling == "mas_dist":
             cat_nom_dist[np.isnan(cat_nom_cols_1) | np.isnan(cat_nom_cols_2)] = 1.0
 
+        print(cat_nom_dist)
+
         if weights is not None:
             cat_nom_dist = cat_nom_dist @ weights[cat_nom_idx]
         else:
@@ -75,6 +77,8 @@ def gower_metric_call_func(
             bin_asym_dist[
                 np.isnan(bin_asym_cols_1) | np.isnan(bin_asym_cols_2)
             ] = 1.0
+
+        print(bin_asym_dist)
 
         if weights is not None:
             bin_asym_dist = bin_asym_dist @ weights[bin_asym_idx]
@@ -114,6 +118,8 @@ def gower_metric_call_func(
 
         if ratio_scale_window == "kde":
             ratio_dist[below_threshold] = 0.0
+
+        print(ratio_dist)
 
         if weights is not None:
             ratio_dist = ratio_dist @ weights[ratio_scale_idx]
@@ -204,6 +210,10 @@ class GowerMetric:
 
             col_mean = np.nanmean(ratio_cols, axis=0)
             nan_indices = np.where(np.isnan(ratio_cols))
+
+            # print("nan_indices:", nan_indices, '\n')
+            # print(ratio_cols, '\n')
+            # print(ratio_cols[nan_indices], '\n')
 
             if self.nan_values_handling == "raise":
                 if len(nan_indices) > 0:
