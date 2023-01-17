@@ -7,6 +7,7 @@ class DataType(Enum):
     BINARY_ASYMMETRIC = 1
     CATEGORICAL_NOMINAL = 2
     RATIO_SCALE = 3
+    ORDINAL = 4
 
 
 @dataclass
@@ -23,6 +24,7 @@ class Data:
         "bin_sym": DataType.BINARY_SYMMETRIC,
         "cat_nom": DataType.CATEGORICAL_NOMINAL,
         "ratio": DataType.RATIO_SCALE,
+        "ordinal": DataType.ORDINAL,
         "NULL": None,
     }
     data: dict

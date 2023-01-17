@@ -183,8 +183,7 @@ class GowerMetric:
         # Bit masks for certain column types
         self.ratio_scale_idx = self.dtypes == DataType.RATIO_SCALE
         self.cat_nom_idx = (self.dtypes == DataType.CATEGORICAL_NOMINAL) | (
-            self.dtypes == DataType.BINARY_SYMMETRIC
-        )
+            self.dtypes == DataType.BINARY_SYMMETRIC) | (self.dtypes == DataType.ORDINAL)
         self.bin_asym_idx = self.dtypes == DataType.BINARY_ASYMMETRIC
 
         # Sums of columns of given type
