@@ -375,7 +375,3 @@ class GowerMetricWeights:
         scores = np.array(scores)
 
         self.gower.number_of_clusters_ = np.argmax(scores)
-
-        # X_values = np.linspace(3, 10, 7)
-        # plt.plot(X_values, scores[3:])
-        # plt.show()

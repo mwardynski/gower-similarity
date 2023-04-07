@@ -20,7 +20,7 @@ class Dataset:
 
 @dataclass
 class Data:
-    cols_type_maping = {
+    cols_type_mapping = {
         "bin_sym": DataType.BINARY_SYMMETRIC,
         "cat_nom": DataType.CATEGORICAL_NOMINAL,
         "ratio": DataType.RATIO_SCALE,

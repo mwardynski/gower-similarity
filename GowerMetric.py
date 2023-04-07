@@ -7,7 +7,7 @@ from utils import DataType
 from weights import GowerMetricWeights
 
 
-@njit
+# @njit
 def gower_metric_call_func(
     vector_1: np.ndarray,
     vector_2: np.ndarray,
@@ -140,6 +140,7 @@ class GowerMetric:
         weights: Optional[Union[list, str, np.ndarray]] = None,
         precomputed_weights_file: Optional[str] = None,
         nan_values_handling: str = "raise",
+        number_of_clusters=None,
         verbose: int = 0,
     ):
         assert (
@@ -167,12 +168,18 @@ class GowerMetric:
             nan_values_handling == "ignore",
             nan_values_handling == "max_dist"
         )
+        assert (
+            number_of_clusters is None
+            or number_of_clusters == -1
+            or number_of_clusters > 0
+        )
 
         self.dtypes = dtypes  # initialize with np.array of column data types
         self.weights = weights
         self.precomputed_weights_file = precomputed_weights_file
         self.verbose = verbose
         self.nan_values_handling = nan_values_handling
+        self.number_of_clusters_ = number_of_clusters    # numbers of clusters to use
         self.ranges_: np.ndarray  # values of ranges in .ratio_scale() (iqr or traditional range)
         self.h_: np.ndarray  # h values in .ratio_scale()
         self.n_features_in_: int
@@ -317,7 +324,7 @@ class GowerMetric:
             self.weights = np.ones(self.n_features_in_)
             loader.select_weights(X)
 
-        if self.weights is not None:
+        if self.number_of_clusters_ == -1:
             loader.select_number_of_clusters(X)
 
     def __call__(
