@@ -13,10 +13,12 @@ from scipy.cluster.hierarchy import (
     fcluster,
 )
 from sklearn.metrics import (
-    silhouette_score,
-    calinski_harabasz_score,
-    davies_bouldin_score,
+    rand_score,
+    completeness_score,
+    fowlkes_mallows_score,
+    mutual_info_score
 )
+from sklearn.metrics import f1_score
 from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
@@ -107,7 +109,7 @@ def ioa(O, P):
     )
 
 
-def scores(metric: Union[str, GowerMetric], data: Data, name: str, labeled: bool, task: str):
+def scores(metric: Union[str, GowerMetric], data: Data, name: str, labeled: bool, task: str, random_state: int = 0):
     number_of_records = 500
 
     # -------------------------- Data preprocessing --------------------------
@@ -151,7 +153,13 @@ def scores(metric: Union[str, GowerMetric], data: Data, name: str, labeled: bool
         df = df[:, :-1]
         y = np.ndarray.astype(y, dtype=np.float64)
 
-    df = np.ndarray.astype(df, dtype=np.float64)
+    # Binarize for jaccard and dice coefficients
+    if metric == "jaccard" or metric == "dice":
+        df = df != 0
+        if y is not None:
+            y = y != 0
+    else:
+        df = np.ndarray.astype(df, dtype=np.float64)
     # ------------------------------------------------------------------------
 
     if isinstance(metric, GowerMetric):
@@ -172,11 +180,11 @@ def scores(metric: Union[str, GowerMetric], data: Data, name: str, labeled: bool
 
         c, cophenetic_distances = cpcc(dist_x, Z)
         i = ioa(dist_x, cophenetic_distances)
-        knn_score = None
+        knn_score, f1 = None, None
 
         if np.max(pred_labels) < 1:
             print("Predicted labels = 1!")
-            return -1, -1, -1, -1, -1
+            return -1, -1, -1, -1, -1, -1, -1, -1
 
     elif task == "hdbscan":
         clusterer = HDBSCAN(metric="precomputed")
@@ -184,7 +192,7 @@ def scores(metric: Union[str, GowerMetric], data: Data, name: str, labeled: bool
         clusterer.fit(X=dist_matrix, y=y)
         pred_labels = clusterer.labels_
 
-        c, i, knn_score = None, None, None
+        c, i, knn_score, f1 = None, None, None, None
     elif task == "knn":
         X_train, X_test, y_train, y_test = train_test_split(
             df, y, test_size=0.2
@@ -196,42 +204,111 @@ def scores(metric: Union[str, GowerMetric], data: Data, name: str, labeled: bool
         knn_score = knn.score(X_test, y_test)
         pred_labels = knn.predict(X_test)
 
-        c, i = None, None
-        s = silhouette_score(X_test, pred_labels, metric=metric)
-        cal_halab = calinski_harabasz_score(X_test, pred_labels)
-        dav_bould = davies_bouldin_score(X_test, pred_labels)
-        return c, i, s, cal_halab, dav_bould, knn_score
+        f1 = f1_score(y_test, pred_labels, average="weighted")
+        c, i, rand, complete, f_m_score, mutual = None, None, None, None, None, None
+        return c, i, rand, complete, f_m_score, mutual, knn_score, f1
     else:
         print("Wrong type of task")
-        return -1, -1, -1, -1, -1
+        return -1, -1, -1, -1, -1, -1, -1, -1
 
-    s = silhouette_score(df, pred_labels, metric=metric)
-    cal_halab = calinski_harabasz_score(df, pred_labels)
-    dav_bould = davies_bouldin_score(df, pred_labels)
+    rand = rand_score(y, pred_labels)
+    complete = completeness_score(y, pred_labels)
+    f_m_score = fowlkes_mallows_score(y, pred_labels)
+    mutual = mutual_info_score(y, pred_labels)
 
-    return c, i, s, cal_halab, dav_bould, knn_score
+    return c, i, rand, complete, f_m_score, mutual, knn_score, f1
 
 
 def add_header(header, task):
     with open(f"./results/test_results_{task}.txt", "a") as file:
-        file.write(f"\n{header}\n")
+        file.write(f"\n{header}")
+        if task == "hierarchical":
+            file.write(f",Rand,Complete,F-M,Mutual,CPCC,IOA\n\n")
+        elif task == "hdbscan":
+            file.write(f",Rand,Complete,F-M,Mutual\n\n")
+        elif task == "knn":
+            file.write(f",KNN Score,F1\n\n")
 
 
-def save_result(metric, task, sil, cal_halab, dav_bould, c, i, knn_score):
+def save_result(metric, task, c, i, rand, complete, f_m_score, mutual, knn_score, f1):
     with open(f"./results/test_results_{task}.txt", "a") as file:
-        file.write(f"{metric},{sil},{cal_halab},{dav_bould},{c},{i}")
-        if task == "knn":
-            file.write(f",{knn_score}\n")
+        if task == "hierarchical":
+            file.write(
+                f"{metric},{rand},{complete},{f_m_score},{mutual},{c},{i}\n"
+            )
+        elif task == "hdbscan":
+            file.write(
+                f"{metric},{rand},{complete},{f_m_score},{mutual}\n"
+            )
+        elif task == "knn":
+            file.write(
+                f"{metric},{knn_score},{f1}\n"
+            )
+
+
+def calc_ranks():
+    with open("./results/ranks_data_knn.txt", "r") as file:
+        data = file.read()
+    data = data.split("\n")
+
+    for i in range(len(data)):
+        data[i] = data[i].split("\t")
+
+    table = [[]]
+    for i in range(len(data)):
+        if data[i][0] == '':
+            table.append([])
         else:
-            file.write("\n")
+            table[-1].append(data[i])
+
+    table = np.array(table, dtype=np.float64)
+    table[table == np.nan] = -1
+    for e, batch in enumerate(table):
+        print(e)
+        for lane in batch:
+            print(lane)
+
+    ranks = np.zeros((len(table[0][0]), len(table[0])))
+    print(f"Ranks shape: {ranks.shape}")
+
+    for i in range(len(table)):
+        for j in range(len(table[0][0])):
+            # print(f"Sorting: {list(table[i][:, j])}")
+            # to_sort = zip(list(table[i][:, j]), range(len(table[i][:, j])))
+            # to_sort = sorted(list(to_sort), key=lambda x: x[0], reverse=True)
+            # print("Sorted:", to_sort)
+            # to_sort = np.array([x[1] for x in to_sort])
+            # table[i][:, j] = to_sort
+            # print(f"{table[i][:, j]}")
+            order = np.argsort(-table[i][:, j])
+
+            order = np.array([np.where(order == k)[0][0] for k in range(len(order))])
+            table[i][:, j] = order
+    table += 1
+
+    for e, batch in enumerate(table):
+        print(e)
+        for lane in batch:
+            print(lane)
+
+    ranks = np.mean(table, axis=0)
+    for rank in ranks:
+        print(rank)
+
+    with open("./results/ranks.txt", "w") as file:
+        for rank in ranks:
+            file.write(f"{','.join(list(rank.astype(str)))}\n")
 
 
 if __name__ == '__main__':
+    calc_ranks()
+    exit(0)
+
     D = load_sets()
     print(f"Loaded sets: {list(D.data.keys())}")
     datasets_names = list(D.data.keys())
 
-    test_dataset_name = "kr-vs-kp"
+    test_dataset_name = "spambase"
 
     config = {
         "ratio_scale_normalization": "iqr",
@@ -246,7 +323,7 @@ if __name__ == '__main__':
     #     D.cols_type[test_dataset_name],
     #     **config
     # )
-    # c, i, sil, cal_halab, dav_bould, knn_score = scores(
+    # c, i, rand, complete, f_m_score, mutual, knn_score, f1 = scores(
     #     metric=gower,
     #     data=D,
     #     name=test_dataset_name,
@@ -254,19 +331,20 @@ if __name__ == '__main__':
     #     task="hierarchical"
     # )
     #
-    # print(f"CPCC: {c}\nIoA: {i}\nSilhouette: {sil}\nCalinski-Harabasz: {cal_halab}\nDavid-Bouldin: {dav_bould}\nKNN-Score: {knn_score}")
+    # print(f"CPCC: {c}, IOA: {i}, Rand: {rand}, Complete: {complete}, F-M: {f_m_score}, Mutual: {mutual}, KNN Score: {knn_score}, F1: {f1}")
 
     # Only for gower
     # for completed, dataset_name in enumerate(datasets_names):
     #     print(f"Dataset: {dataset_name} ... {(completed / len(datasets_names) * 100):.2f}%")
-    #     for task in TASKS:
+    #     for task in ["hdbscan", "knn"]:
+    #         add_header(dataset_name, task)
     #         gower = GowerMetric(
     #             D.cols_type[dataset_name],
     #             **config
     #         )
     #
     #         try:
-    #             c, i, sil, cal_halab, dav_bould = scores(
+    #             c, i, rand, complete, f_m_score, mutual, knn_score, f1 = scores(
     #                 metric=gower,
     #                 data=D,
     #                 name=dataset_name,
@@ -275,11 +353,12 @@ if __name__ == '__main__':
     #             )
     #         except Exception:
     #             print(f"Error with gower metric, dataset: {dataset_name}, task: {task}")
-    #             c, i, sil, cal_halab, dav_bould = -1, -1, -1, -1, -1
-    #         print(f"Silhouette: {sil}\nCalinski-Harabasz: {cal_halab}\nDavid-Bouldin: {dav_bould}, CPCC: {c}, IoA: {i}")
+    #             c, i, rand, complete, f_m_score, mutual, knn_score, f1 = -1, -1, -1, -1, -1, -1, -1, -1
+    #         save_result("gower", task, c, i, rand, complete, f_m_score, mutual, knn_score, f1)
+    #         print(f"CPCC: {c}, IOA: {i}, Rand: {rand}, Complete: {complete}, F-M: {f_m_score}, Mutual: {mutual}, KNN Score: {knn_score}, F1: {f1}")
 
     # All metrics
-    for completed, dataset_name in enumerate(["breast_cancer_wisconsin"]):
+    for completed, dataset_name in enumerate(datasets_names):
         print(f"Dataset: {dataset_name} ... {(completed / len(datasets_names) * 100):.2f}%")
         for task in ["knn"]:
             add_header(dataset_name, task)
@@ -289,7 +368,7 @@ if __name__ == '__main__':
             )
 
             try:
-                c, i, sil, cal_halab, dav_bould, knn_score = scores(
+                c, i, rand, complete, f_m_score, mutual, knn_score, f1 = scores(
                     metric=gower,
                     data=D,
                     name=dataset_name,
@@ -298,12 +377,12 @@ if __name__ == '__main__':
                 )
             except Exception:
                 print(f"Error with gower metric, dataset: {dataset_name}, task: {task}")
-                c, i, sil, cal_halab, dav_bould, knn_score = -1, -1, -1, -1, -1, -1
-            save_result("gower", task, sil, cal_halab, dav_bould, c, i, knn_score)
+                c, i, rand, complete, f_m_score, mutual, knn_score, f1 = -1, -1, -1, -1, -1, -1, -1, -1
+            save_result("gower", task, c, i, rand, complete, f_m_score, mutual, knn_score, f1)
 
             for metric_name in TEST_METRICS_NAMES:
                 try:
-                    c, i, sil, cal_halab, dav_bould, knn_score = scores(
+                    c, i, rand, complete, f_m_score, mutual, knn_score, f1 = scores(
                         metric=metric_name,
                         data=D,
                         name=dataset_name,
@@ -313,7 +392,7 @@ if __name__ == '__main__':
                 except Exception as e:
                     print(f"Error with {metric_name} metric, dataset: {dataset_name}, task: {task}")
                     print(e)
-                    c, i, sil, cal_halab, dav_bould, knn_score = -1, -1, -1, -1, -1, -1
-                save_result(metric_name, task, sil, cal_halab, dav_bould, c, i, knn_score)
+                    c, i, rand, complete, f_m_score, mutual, knn_score, f1 = -1, -1, -1, -1, -1, -1, -1, -1
+                save_result(metric_name, task, c, i, rand, complete, f_m_score, mutual, knn_score, f1)
 
     print("Completed ... 100%")
