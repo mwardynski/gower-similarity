@@ -145,10 +145,10 @@ class GowerMetric:
     ):
         assert (
             weights is None
-            or weights == "precomputed"
-            or weights == "cpcc"
             or type(weights) == np.ndarray
             or type(weights) == list
+            or weights == "precomputed"
+            or weights == "cpcc"
         )
         assert (
             ratio_scale_normalization == "range"
