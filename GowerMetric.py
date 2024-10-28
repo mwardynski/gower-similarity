@@ -96,10 +96,10 @@ class GowerMetric:
     ):
         assert (
             weights is None
-            or weights == "precomputed"
-            or weights == "cpcc"
             or type(weights) == np.ndarray
             or type(weights) == list
+            or weights == "precomputed"
+            or weights == "cpcc"
         )
         assert (
             ratio_scale_normalization == "range"
@@ -164,11 +164,12 @@ class GowerMetric:
                 )
 
         loader = GowerMetricWeights(self)
-        if self.weights == "precomputed":
-            loader.load_weights(self.precomputed_weights_file)
-        elif self.weights == "cpcc":
-            self.weights = np.ones(self.n_features_in_)
-            loader.select_weights(X)
+        if type(self.weights) != np.ndarray and type(self.weights) != list:
+            if self.weights == "precomputed":
+                loader.load_weights(self.precomputed_weights_file)
+            elif type(self.weights) != np.ndarray and self.weights == "cpcc":
+                self.weights = np.ones(self.n_features_in_)
+                loader.select_weights(X)
 
         if self.weights is not None:
             loader.select_number_of_clusters(X)
