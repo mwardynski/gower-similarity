@@ -216,7 +216,7 @@ class GowerMetric:
             # print(ratio_cols[nan_indices], '\n')
 
             if self.nan_values_handling == "raise":
-                if len(nan_indices) > 0:
+                if not all(isinstance(item, np.ndarray) and item.size == 0 for item in nan_indices):
                     raise ValueError
 
             ratio_cols[nan_indices] = np.take(col_mean, nan_indices[1])
@@ -318,11 +318,12 @@ class GowerMetric:
                     self.h_ = np.array(self.h_, dtype=np.float64)
 
         loader = GowerMetricWeights(self, _save_computed_weights=False)
-        if self.weights == "precomputed":
-            loader.load_weights(self.precomputed_weights_file)
-        elif self.weights == "cpcc":
-            self.weights = np.ones(self.n_features_in_)
-            loader.select_weights(X)
+        if isinstance(self.weights, str):
+            if self.weights == "precomputed":
+                loader.load_weights(self.precomputed_weights_file)
+            elif self.weights == "cpcc":
+                self.weights = np.ones(self.n_features_in_)
+                loader.select_weights(X)
 
         if self.number_of_clusters_ == -1:
             loader.select_number_of_clusters(X)

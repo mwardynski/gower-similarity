@@ -71,7 +71,6 @@ def test_ratio():
     res = gower(data[0], data[1])
     assert res == (7 / 13 + 1 + 1 + 1 / 7 + 5 / 22) / 7
 
-
 def test_bin_asym():
     data = np.array([[1, 1, 0, 1, 1], [1, 0, 0, 0, 1]])
     gower = GowerMetric(
@@ -108,7 +107,6 @@ def test_weights():
     gower.fit(data)
     res = gower(data[0], data[1])
     assert res == ((dist / ranges) @ gower_weights) / 5.0
-
 
 def test_all_types():
     data = np.array(
@@ -305,12 +303,9 @@ def test_nan_raise():
 
     try:
         gower.fit(data)
-        res = gower(data[0], data[1])
+        assert False
     except ValueError:
-        assert True
-        exit(0)
-    assert False
-
+        pass
 
 def test_nan_ignore():
     data = pd.DataFrame(
