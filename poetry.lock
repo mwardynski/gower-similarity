@@ -331,6 +331,55 @@ files = [
 ]
 
 [[package]]
+name = "kdepy"
+version = "1.1.11"
+description = "Kernel Density Estimation in Python."
+optional = false
+python-versions = "*"
+files = [
+    {file = "KDEpy-1.1.11-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:9250d9b0ce1f869698e33926d102989087e0b5f894512d11ff54f9aa3daef926"},
+    {file = "KDEpy-1.1.11-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:ab85e07fbc521630481ae59c43d9eb9ec6741b8922d36a44677b7fe117094e5c"},
+    {file = "KDEpy-1.1.11-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:66ae5d37dbb947da4052b1a8edc054e24801d846b2b081f5720c314a1b594d8c"},
+    {file = "KDEpy-1.1.11-cp310-cp310-win32.whl", hash = "sha256:3aa3feead617dced7973bb28c11b286c272c933011466c810913b39ee9965d67"},
+    {file = "KDEpy-1.1.11-cp310-cp310-win_amd64.whl", hash = "sha256:f95978a0db7a71b9aab29c79d1a5d0c3b907f1388ef84659beabbcf603a43f85"},
+    {file = "KDEpy-1.1.11-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:c9a2e744c7009b3a6f92934719f9f9acd23f0e95e4702297d8dbcf6d8ce56252"},
+    {file = "KDEpy-1.1.11-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:66359d1936c05868acaff5ebdb10e9f92c789b06c5441fcc3addedbb7c483b16"},
+    {file = "KDEpy-1.1.11-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a44fef7a1338a91d86b20a6268d401b26097b9754141387d4603d5f2fb478df8"},
+    {file = "KDEpy-1.1.11-cp311-cp311-win32.whl", hash = "sha256:e7a15de8c43f1aa677de30f20443d3de6002f5eac2bb66d018ce209a7bd202c0"},
+    {file = "KDEpy-1.1.11-cp311-cp311-win_amd64.whl", hash = "sha256:a810a347a169bbfcf76d10742b61c3e7aaf32d8b616571dd9232356cf2e17960"},
+    {file = "KDEpy-1.1.11-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:6bc0e684c43b519fe9768c6bbd3a82e722234045ed7aed4343ab320d1769a98f"},
+    {file = "KDEpy-1.1.11-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:58748907cb47804cfced6ad22fc9732b08995eb350555336bcd125497cde8fb1"},
+    {file = "KDEpy-1.1.11-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:59d94166875d895eb18be03e09d2e62611f1c3f58de1a504c1b8d050a055c840"},
+    {file = "KDEpy-1.1.11-cp312-cp312-win32.whl", hash = "sha256:c606ae984f4daf6315d17dacc070f19cb2e2dc1847ab774ab3365e7c73feb216"},
+    {file = "KDEpy-1.1.11-cp312-cp312-win_amd64.whl", hash = "sha256:b38086530f26f91a55232c23ba89a3d9816cc4160fb5b15fe586b0d7c6532486"},
+    {file = "KDEpy-1.1.11-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:f87a71ab32f2c3472baf7e585b990cc93bc5e3e19f8054d4f900f86c2b422c20"},
+    {file = "KDEpy-1.1.11-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:6215e0519f9660372c44ef1945980d6c025f10bdceb0954ed8cd79c0492ef52f"},
+    {file = "KDEpy-1.1.11-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e8973ca83ba92f3a8e068ff810d299ffa5a6d9774c606ab03a319236f2bba24d"},
+    {file = "KDEpy-1.1.11-cp313-cp313-win32.whl", hash = "sha256:1ae504070d555bf8477ae4f2765c63c1401862ee2be664888a6f5115dd2a4927"},
+    {file = "KDEpy-1.1.11-cp313-cp313-win_amd64.whl", hash = "sha256:46548cad3742511dae94f3566b7f9a44b75b52f3081010143a85b7b857d45bc0"},
+    {file = "KDEpy-1.1.11-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:744231ff80d91ac3c81c1b20acf37589240207137d76d0f4f8f787edaff0d5b9"},
+    {file = "KDEpy-1.1.11-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:88a00a3242b7885a79285e66420561cf7655b3caa974c0137911b841e7d1277d"},
+    {file = "KDEpy-1.1.11-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:407dd205422ca0cf19cd4d08adaab5861105879e159c3e61dc5f28e2d0b6a132"},
+    {file = "KDEpy-1.1.11-cp38-cp38-win32.whl", hash = "sha256:0c60e8b39f8724b6e8e6e91c73fd4327a90a594fa4d3804d7378ee2a48c402f4"},
+    {file = "KDEpy-1.1.11-cp38-cp38-win_amd64.whl", hash = "sha256:358103378a5df1941926dcca796d3c981e84ad6ffde87116a859e785d89d4158"},
+    {file = "KDEpy-1.1.11-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:ca34d9be9961f0ec4ca77ea9c98d96c2944dfade6c8a08f5e9fa866b5130e662"},
+    {file = "KDEpy-1.1.11-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:60563fc7a5058c5aaf597752103686f34fec44b6802e64eca6c298af64e8621a"},
+    {file = "KDEpy-1.1.11-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a33273e1c7d0b92d177f6d1077c1306e7a89aec6a0a6b4df27650dd4ddccf510"},
+    {file = "KDEpy-1.1.11-cp39-cp39-win32.whl", hash = "sha256:8e18492460625eba4f5a1cd29255f50e3ab7df71d2a48e77d8d262f5a252a1c6"},
+    {file = "KDEpy-1.1.11-cp39-cp39-win_amd64.whl", hash = "sha256:79f2038e6991986e63caa295a49e3cb0f53abfa393626c3527bd71afb1013a71"},
+    {file = "kdepy-1.1.11.tar.gz", hash = "sha256:603cc3cd1c80bb0a7a9b0b74ebae117d312e37cee8fc1c637b46888e48d91085"},
+]
+
+[package.dependencies]
+numpy = ">=1.14.2"
+scipy = ">=1.0.1,<2.0"
+
+[package.extras]
+dev = ["build (>=0.10.0)", "ipython (>=6.4.0)", "matplotlib (>=2.2.2)", "nbsphinx (==0.9.1)", "numpydoc (>=0.7.0)", "sphinx (<7)"]
+lint = ["black", "flake8 (>=3.5.0)"]
+test = ["matplotlib (>=2.2.2)", "pytest (>=3.6.2)"]
+
+[[package]]
 name = "kiwisolver"
 version = "1.4.7"
 description = "A fast implementation of the Cassowary constraint solver"
@@ -1088,4 +1137,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "7cb364b8dd3da9916e0ecfce8f2c86718f64b0b84c42b447d79f3b6886915a3d"
+content-hash = "90e30ed4cba67602cd5e18e626bf451a13b420cad1b0458995ee4c835b8e8c4c"
