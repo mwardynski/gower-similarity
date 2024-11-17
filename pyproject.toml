@@ -18,6 +18,9 @@ Cython = "^3.0.10"
 ica = "^0.5"
 numba = "^0.60.0"
 KDEpy = "^1.1.11"
+optuna = "^4.1.0"
+hdbscan = "^0.8.39"
+unittest2 = "^1.1.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.8.0"
