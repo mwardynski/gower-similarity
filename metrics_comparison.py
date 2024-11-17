@@ -26,7 +26,7 @@ from sklearn.preprocessing import OrdinalEncoder
 from sklearn.utils import shuffle
 
 from utils import Dataset, Data, DataType
-from GowerMetric import GowerMetric
+from GowerMetric import MyGowerMetric
 
 
 DATASET_DIR = "./metrics_comparison_datasets/"
@@ -109,7 +109,7 @@ def ioa(O, P):
     )
 
 
-def scores(metric: Union[str, GowerMetric], data: Data, name: str, labeled: bool, task: str, random_state: int = 0):
+def scores(metric: Union[str, MyGowerMetric], data: Data, name: str, labeled: bool, task: str, random_state: int = 0):
     number_of_records = 500
 
     # -------------------------- Data preprocessing --------------------------
@@ -162,7 +162,7 @@ def scores(metric: Union[str, GowerMetric], data: Data, name: str, labeled: bool
         df = np.ndarray.astype(df, dtype=np.float64)
     # ------------------------------------------------------------------------
 
-    if isinstance(metric, GowerMetric):
+    if isinstance(metric, MyGowerMetric):
         metric.fit(df)
 
     if task == "hierarchical":
@@ -170,7 +170,7 @@ def scores(metric: Union[str, GowerMetric], data: Data, name: str, labeled: bool
 
         num_of_clusters = (
             metric.number_of_clusters_
-            if isinstance(metric, GowerMetric) and metric.number_of_clusters_ is not None
+            if isinstance(metric, MyGowerMetric) and metric.number_of_clusters_ is not None
             else 3
         )
 

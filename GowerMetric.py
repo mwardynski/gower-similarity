@@ -130,7 +130,7 @@ def gower_metric_call_func(
     return distance
 
 
-class GowerMetric:
+class MyGowerMetric:
     def __init__(
         self,
         dtypes: np.array,
