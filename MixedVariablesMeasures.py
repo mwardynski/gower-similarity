@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 from utils import DataType
 
@@ -174,20 +175,40 @@ class Podani:
         if self.ordinal_num > 0:
             ordinal_cols = X[:, self.ordinal_idx]
 
-            self.ordinal_ranges_ = np.ptp(ordinal_cols, axis=0)
+            self.rank_mappings = self.collect_rank_mappings(ordinal_cols)
+            self.ordinal_cardinalities = self.collect_ordinal_cardinalities(ordinal_cols)
 
-            self.min_ranks_ = np.min(ordinal_cols, axis=0)
-            self.max_ranks_ = np.max(ordinal_cols, axis=0)
+            self.min_ranks_ = np.array([sublist[0] for sublist in self.rank_mappings])
+            self.max_ranks_ = np.array([sublist[-1] for sublist in self.rank_mappings])
+            self.min_ordinals_ = np.min(ordinal_cols, axis=0)
+            self.max_ordinals_ = np.max(ordinal_cols, axis=0)
+            
 
-            self.ordinal_occurrences = []
-            for i in range(self.ordinal_num):
-                self.ordinal_occurrences.append(np.bincount(ordinal_cols[i].astype(int)))
+    def collect_rank_mappings(self, data):
+        rank_mappings = []
+
+        ranks = pd.DataFrame(data).rank(method="average", axis=0).to_numpy()
+        for i in range(data.shape[1]):
+            unique_ranks = np.sort(np.unique(ranks[:, i]))
+            rank_mappings.append(unique_ranks)
+
+        return rank_mappings
+
+    def collect_ordinal_cardinalities(self, data):
+        ordinals_cardinality = []
+
+        for i in range(data.shape[1]):
+            unique_elements, counts = np.unique(data[:, i], return_counts=True)
+            occurrences_sorted = np.array(sorted(dict(zip(unique_elements, counts)).items()))
+            ordinals_cardinality.append(occurrences_sorted[:, 1])
+
+        return ordinals_cardinality
 
     def __call__(self, vector_1: np.ndarray, vector_2: np.ndarray):
         assert self.n_features_in_ == len(vector_1)
         assert self.n_features_in_ == len(vector_2)
 
-        if self.bin_idx > 0:
+        if self.bin_num > 0:
             bin_cols_1 = vector_1[self.bin_idx]
             bin_cols_2 = vector_2[self.bin_idx]
 
@@ -214,20 +235,33 @@ class Podani:
         if self.ordinal_num > 0:
             ordinal_cols_1 = vector_1[self.ordinal_idx]
             ordinal_cols_2 = vector_2[self.ordinal_idx]
+            
+            rank_col_1 = np.zeros(ordinal_cols_1.shape[0])
+            rank_col_2 = np.zeros(ordinal_cols_2.shape[0])
+            for i in range(vector_1.shape[0]):
+                mapping = self.rank_mappings[i]
+                rank_col_1[i] = mapping[int(ordinal_cols_1[i])]
+                rank_col_2[i] = mapping[int(ordinal_cols_2[i])]
 
-            abs_dist = np.abs(ordinal_cols_1 - ordinal_cols_2)
-            second_term = np.zeros(self.ordinal_num)
-            third_term = np.zeros(self.ordinal_num)
-
+            abs_ranks_dist = np.abs(rank_col_1 - rank_col_2)
+            
+            first_ordinal_occur = np.zeros(self.ordinal_num)
+            second_ordinal_occur = np.zeros(self.ordinal_num)
+            max_ordinal_occur = np.zeros(self.ordinal_num)
+            min_ordinal_occur = np.zeros(self.ordinal_num)
             for i in range(self.ordinal_num):
-                second_term[i] = self.ordinal_occurrences[i][ordinal_cols_1[i]]
-                third_term[i] = self.ordinal_occurrences[i][ordinal_cols_2[i]]
+                first_ordinal_occur[i] = self.ordinal_cardinalities[i][ordinal_cols_1[i]]
+                second_ordinal_occur[i] = self.ordinal_cardinalities[i][ordinal_cols_2[i]]
+                max_ordinal_occur[i] = self.ordinal_cardinalities[i][-1]
+                min_ordinal_occur[i] = self.ordinal_cardinalities[i][0]
 
-            second_term /= 2
-            third_term /= 2
+            first_ordinal_occur = (first_ordinal_occur - 1) / 2
+            second_ordinal_occur = (second_ordinal_occur - 1) / 2
+            max_ordinal_occur = (max_ordinal_occur - 1) / 2
+            min_ordinal_occur = (min_ordinal_occur - 1) / 2
 
-            ordinal_dist = np.sum(np.power((abs_dist - second_term - third_term) /
-                                    (self.ordinal_ranges_ - self.min_ranks_ - self.max_ranks_), 2))
+            ordinal_dist = np.sum(np.power((abs_ranks_dist - first_ordinal_occur - second_ordinal_occur) /
+                                    (self.max_ranks_ - self.min_ranks_ - max_ordinal_occur - min_ordinal_occur), 2))
         else:
             ordinal_dist = 0.0
 
