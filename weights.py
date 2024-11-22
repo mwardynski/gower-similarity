@@ -25,16 +25,47 @@ def gower_metric_call_func(
     cat_nom_num: int,
     bin_asym_num: int,
     ratio_scale_num: int,
+    num_interval_num: int,
     cat_nom_idx: np.ndarray,
     bin_asym_idx: np.ndarray,
     ratio_scale_idx: np.ndarray,
+    num_interval_idx: np.ndarray,
     ratio_scale_normalization: str,
+    num_interval_normalization: str,
     ranges_: np.ndarray,
     h_: np.ndarray,
     n_features_in_: int,
 ):
     assert n_features_in_ == len(vector_1)
     assert n_features_in_ == len(vector_2)
+
+    # numeric interval section
+    if num_interval_num > 0:
+        num_int_cols_1 = vector_1[num_interval_idx]
+        num_int_cols_2 = vector_2[num_interval_idx]
+
+        if num_interval_normalization == "range":
+            num_int_dist = 1 - (np.abs(num_int_cols_1 - num_int_cols_2) / ranges_)
+        elif num_interval_normalization == "iqr":
+            iqr_val = ranges_
+            num_int_dist = 1 - (np.abs(num_int_cols_1 - num_int_cols_2) / iqr_val)
+        else:
+            raise ValueError("Invalid normalization method, please choose otherwise")
+
+        # max - min
+        Rt = np.abs(num_int_cols_1 - num_int_cols_2)
+        num_int_dist = 1 - (np.abs(num_int_cols_1 - num_int_cols_2) / Rt)
+
+        # if both variables are nonmissing then 1
+        num_int_dist[np.isnan(num_int_cols_1) | np.isnan(num_int_cols_2)] = 1.0
+        num_int_dist[num_int_dist < 0] = 0
+
+        if weights is not None:
+            num_int_dist = num_int_dist @ weights[num_interval_idx]
+        else:
+            num_int_dist = num_int_dist.sum()
+    else:
+        num_int_dist = 0.0
 
     if cat_nom_num > 0:
         cat_nom_cols_1 = vector_1[cat_nom_idx]
@@ -94,7 +125,7 @@ def gower_metric_call_func(
     else:
         ratio_dist = 0.0
 
-    distance = cat_nom_dist + bin_asym_dist + ratio_dist
+    distance = cat_nom_dist + bin_asym_dist + ratio_dist + num_int_dist
 
     # Normalization
     distance /= n_features_in_
@@ -107,6 +138,7 @@ class GowerMetricDummy:
         self,
         dtypes: np.array,
         ratio_scale_normalization: str = "range",
+        num_interval_normalization: str = None,
         weights: Optional[Union[list, str, np.ndarray]] = None,
         precomputed_weights_file: Optional[str] = None,
         verbose: int = 0,
@@ -123,6 +155,10 @@ class GowerMetricDummy:
             or ratio_scale_normalization == "iqr"
             or ratio_scale_normalization == "kde"
         )
+        assert(
+            num_interval_normalization == "range"
+            or num_interval_normalization == "iqr"
+        )
 
         self.dtypes = dtypes  # initialize with np.array of column data types
         self.weights = weights
@@ -132,6 +168,7 @@ class GowerMetricDummy:
         self.h_: np.ndarray  # h values in .ratio_scale()
         self.n_features_in_: int
         self.ratio_scale_normalization: str = ratio_scale_normalization
+        self.num_interval_normalization: str = num_interval_normalization
 
         # Bit masks for certain column types
         self.ratio_scale_idx = self.dtypes == DataType.RATIO_SCALE
@@ -139,11 +176,13 @@ class GowerMetricDummy:
             self.dtypes == DataType.BINARY_SYMMETRIC
         )
         self.bin_asym_idx = self.dtypes == DataType.BINARY_ASYMMETRIC
+        self.num_interval_idx = self.dtypes == DataType.NUMERIC_INTERVAL
 
         # Sums of columns of given type
         self.cat_nom_num = np.sum(self.cat_nom_idx)
         self.ratio_scale_num = np.sum(self.ratio_scale_idx)
         self.bin_asym_num = np.sum(self.bin_asym_idx)
+        self.num_interval_num = np.sum(self.num_interval_idx)
 
     def fit(self, X):
         assert X.shape[1] == len(self.dtypes)
@@ -203,10 +242,13 @@ class GowerMetricDummy:
             self.cat_nom_num,
             self.bin_asym_num,
             self.ratio_scale_num,
+            self.num_interval_num,
             self.cat_nom_idx,
             self.bin_asym_idx,
             self.ratio_scale_idx,
+            self.num_interval_idx,
             self.ratio_scale_normalization,
+            self.num_interval_normalization,
             self.ranges_,
             self.h_,
             self.n_features_in_,

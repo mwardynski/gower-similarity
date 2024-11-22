@@ -8,6 +8,7 @@ class DataType(Enum):
     CATEGORICAL_NOMINAL = 2
     RATIO_SCALE = 3
     ORDINAL = 4
+    NUMERIC_INTERVAL = 5
 
 
 @dataclass
@@ -25,6 +26,7 @@ class Data:
         "cat_nom": DataType.CATEGORICAL_NOMINAL,
         "ratio": DataType.RATIO_SCALE,
         "ordinal": DataType.ORDINAL,
+        "num_interval": DataType.NUMERIC_INTERVAL,
         "NULL": None,
     }
     data: dict
