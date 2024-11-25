@@ -1,9 +1,14 @@
 # clear memory and environment
 rm(list = ls(all.names = TRUE))
 
-# library imports
-library(readr)
-library(caret)
+# library installation and load
+ensure_package_installed_and_loaded <- function(my_package_name) {
+  if (!require(my_package_name, character.only = TRUE)) {
+    install.packages(my_package_name, dependencies = TRUE)
+    library(package_name, character.only = TRUE)
+  }
+}
+sapply(c("readr", "caret", "cluster"), ensure_package_installed_and_loaded)
 
 adult <- read_csv("tests/tests_files/adult.csv")
 car_insurance_claim <- read_csv("tests/tests_files/car_insurance_claim.csv")
