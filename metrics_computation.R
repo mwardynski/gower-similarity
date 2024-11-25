@@ -11,16 +11,16 @@ diabetes <- read_csv("tests/tests_files/diabetes.csv")
 survey <- read_csv("tests/tests_files/survey.csv")
 
 # numerical variables normalization 0-1
-normalize <- function(file_csv){
-  my_numeric_columns <- sapply(file_csv, is.numeric)
+normalize <- function(my_input){
+  my_numeric_columns <- sapply(my_input, is.numeric)
   
   # check if there are any numeric columns to normalize
-  if (sum(numeric_cols) == 0) {
-    stop("Brak kolumn numerycznych do normalizacji w pliku: ", file_csv)
+  if (sum(my_numeric_columns) == 0) {
+    stop("Brak kolumn numerycznych do normalizacji w pliku: ", my_input)
   }
   
-  preproc <- preProcess(data[, numeric_cols], method = c("range"))
-  normalized_data <- predict(preproc, data)
+  preproc <- preProcess(my_input[, my_numeric_columns], method = c("range"))
+  normalized_data <- predict(preproc, my_input)
   
   return(normalized_data)
 }
