@@ -387,3 +387,35 @@ def test_podani_ord():
     tolerance = 0.0001
     assert res-expected_result < tolerance
 
+def test_podani_categorical():
+    data = pd.DataFrame(
+        [
+            ['Poland', 'Music'],
+            ['Germany', 'Painting'],
+            ['Italy', 'Music'],
+            ['Poland', 'Sculpture'],
+            ['Italy', 'Architecture']
+        ]
+    )
+
+    from MixedVariablesMeasures import Podani
+    podani = Podani(dtypes=np.array(
+            [DataType.CATEGORICAL_NOMINAL,
+             DataType.CATEGORICAL_NOMINAL]))
+
+    enc = OrdinalEncoder(
+        categories="auto",
+        dtype=np.float64,
+        handle_unknown="use_encoded_value",
+        unknown_value=np.nan,
+        encoded_missing_value=np.nan
+    )
+    enc.fit(data)
+    data = enc.transform(data)
+    data = np.ndarray.astype(data, dtype=np.int32)
+
+    podani.fit(data)
+    res = podani(data[0], data[1])
+    expected_result = 1.4142
+    tolerance = 0.0001
+    assert res-expected_result < tolerance

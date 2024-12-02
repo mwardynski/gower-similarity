@@ -220,7 +220,9 @@ class Podani:
             cat_nom_cols_1 = vector_1[self.cat_nom_idx]
             cat_nom_cols_2 = vector_2[self.cat_nom_idx]
 
-            cat_nom_dist = ...      # TODO: implement
+            #np.power(cat_nom_val, 2) not needed, because can_nom_val \in {0, 1}
+            cat_nom_dist = np.sum(np.power(1.0 - (cat_nom_cols_1 == cat_nom_cols_2), 2))
+
         else:
             cat_nom_dist = 0.0
 
