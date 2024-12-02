@@ -365,10 +365,12 @@ def test_podani_ord():
         ]
     )
 
-    from MixedVariablesMeasures import Podani
-    podani = Podani(dtypes=np.array(
-            [DataType.ORDINAL,
-             DataType.ORDINAL]))
+    gower = MyGowerMetric(
+        dtypes=np.array(
+            [DataType.CATEGORICAL_ORDINAL,
+             DataType.CATEGORICAL_ORDINAL]
+        )
+    )
 
     enc = OrdinalEncoder(
         categories="auto",
@@ -381,9 +383,9 @@ def test_podani_ord():
     data = enc.transform(data)
     data = np.ndarray.astype(data, dtype=np.int32)
 
-    podani.fit(data)
-    res = podani(data[0], data[1])
-    expected_result = 0.4167
+    gower.fit(data)
+    res = gower(data[0], data[1])
+    expected_result = 0.2917
     tolerance = 0.0001
     assert res-expected_result < tolerance
 

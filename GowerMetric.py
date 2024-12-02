@@ -2,10 +2,10 @@ from typing import Optional, Union
 
 import numpy as np
 from numba import njit
+import pandas as pd
 
 from utils import DataType
 from weights import GowerMetricWeights
-
 
 # @njit
 def gower_metric_call_func(
@@ -13,16 +13,22 @@ def gower_metric_call_func(
     vector_2: np.ndarray,
     weights: np.ndarray,
     cat_nom_num: int,
+    cat_ord_num: int,
     bin_asym_num: int,
     ratio_scale_num: int,
     num_interval_num: int,
     cat_nom_idx: np.ndarray,
+    cat_ord_idx: np.ndarray,
     bin_asym_idx: np.ndarray,
     ratio_scale_idx: np.ndarray,
     num_interval_idx: np.ndarray,
     ratio_scale_normalization: str,
     num_interval_normalization: str,
     ratio_scale_window: str,
+    cat_ord_rank_mappings: np.ndarray,
+    cat_ord_cardinalities: np.ndarray,
+    cat_ord_min_ranks_: np.ndarray,
+    cat_ord_max_ranks_: np.ndarray,
     ranges_: np.ndarray,
     h_: np.ndarray,
     n_features_in_: int,
@@ -84,6 +90,45 @@ def gower_metric_call_func(
             cat_nom_dist = cat_nom_dist.sum()
     else:
         cat_nom_dist = 0.0
+
+    if cat_ord_num > 0:
+        ordinal_cols_1 = vector_1[cat_ord_idx]
+        ordinal_cols_2 = vector_2[cat_ord_idx]
+        
+        rank_col_1 = np.zeros(ordinal_cols_1.shape[0])
+        rank_col_2 = np.zeros(ordinal_cols_2.shape[0])
+        for i in range(vector_1.shape[0]):
+            mapping = cat_ord_rank_mappings[i]
+            rank_col_1[i] = mapping[int(ordinal_cols_1[i])]
+            rank_col_2[i] = mapping[int(ordinal_cols_2[i])]
+
+        abs_ranks_dist = np.abs(rank_col_1 - rank_col_2)
+        
+        first_ordinal_occur = np.zeros(cat_ord_num)
+        second_ordinal_occur = np.zeros(cat_ord_num)
+        max_ordinal_occur = np.zeros(cat_ord_num)
+        min_ordinal_occur = np.zeros(cat_ord_num)
+        for i in range(cat_ord_num):
+            first_ordinal_occur[i] = cat_ord_cardinalities[i][ordinal_cols_1[i]]
+            second_ordinal_occur[i] = cat_ord_cardinalities[i][ordinal_cols_2[i]]
+            max_ordinal_occur[i] = cat_ord_cardinalities[i][-1]
+            min_ordinal_occur[i] = cat_ord_cardinalities[i][0]
+
+        first_ordinal_occur = (first_ordinal_occur - 1) / 2
+        second_ordinal_occur = (second_ordinal_occur - 1) / 2
+        max_ordinal_occur = (max_ordinal_occur - 1) / 2
+        min_ordinal_occur = (min_ordinal_occur - 1) / 2
+
+        cat_ord_dist = (abs_ranks_dist - first_ordinal_occur - second_ordinal_occur) / \
+                                (cat_ord_max_ranks_ - cat_ord_min_ranks_ - max_ordinal_occur - min_ordinal_occur)
+        
+        if weights is not None:
+            cat_ord_dist = cat_ord_dist @ weights[ratio_scale_idx]
+        else:
+            cat_ord_dist = cat_ord_dist.sum()
+        
+    else:
+        cat_ord_dist = 0.0
 
     if bin_asym_num > 0:
         bin_asym_cols_1 = vector_1[bin_asym_idx]
@@ -153,7 +198,7 @@ def gower_metric_call_func(
     else:
         ratio_dist = 0.0
 
-    distance = cat_nom_dist + bin_asym_dist + ratio_dist + num_int_dist
+    distance = cat_nom_dist + bin_asym_dist + ratio_dist + num_int_dist + cat_ord_dist
 
     # Normalization
     distance /= (n_features_in_ - cat_nom_ignored_num - bin_asym_ignored_num - ratio_scale_ignored_num - num_int_ignored_num)
@@ -226,16 +271,23 @@ class MyGowerMetric:
 
         # Bit masks for certain column types
         self.ratio_scale_idx = self.dtypes == DataType.RATIO_SCALE
-        self.cat_nom_idx = (self.dtypes == DataType.CATEGORICAL_NOMINAL) | (
-            self.dtypes == DataType.BINARY_SYMMETRIC) | (self.dtypes == DataType.ORDINAL)
+        self.cat_nom_idx = (self.dtypes == DataType.CATEGORICAL_NOMINAL) | (self.dtypes == DataType.BINARY_SYMMETRIC)
+        self.cat_ord_idx = self.dtypes == DataType.CATEGORICAL_ORDINAL
         self.bin_asym_idx = self.dtypes == DataType.BINARY_ASYMMETRIC
         self.num_interval_idx = self.dtypes == DataType.NUMERIC_INTERVAL
 
         # Sums of columns of given type
         self.cat_nom_num = np.sum(self.cat_nom_idx)
+        self.cat_ord_num = np.sum(self.cat_ord_idx)
         self.ratio_scale_num = np.sum(self.ratio_scale_idx)
         self.bin_asym_num = np.sum(self.bin_asym_idx)
         self.num_interval_num = np.sum(self.num_interval_idx)
+
+        self.cat_ord_rank_mappings = None,
+        self.cat_ord_cardinalities = None,
+        self.cat_ord_min_ranks_ = None,
+        self.cat_ord_max_ranks_ = None,
+
 
     def fit(self, X):
         assert X.shape[1] == len(self.dtypes)
@@ -355,6 +407,15 @@ class MyGowerMetric:
                         optuna_search.fit(ratio_cols[:, i].reshape(-1, 1))
                         self.h_.append(optuna_search.best_estimator_.bandwidth)
                     self.h_ = np.array(self.h_, dtype=np.float64)
+        
+        if self.cat_ord_num > 0:
+            ordinal_cols = X[:, self.cat_ord_idx]
+
+            self.cat_ord_rank_mappings = self.collect_rank_mappings(ordinal_cols)
+            self.cat_ord_cardinalities = self.collect_ordinal_cardinalities(ordinal_cols)
+
+            self.cat_ord_min_ranks_ = np.array([sublist[0] for sublist in self.cat_ord_rank_mappings])
+            self.cat_ord_max_ranks_ = np.array([sublist[-1] for sublist in self.cat_ord_rank_mappings])
 
         loader = GowerMetricWeights(self, _save_computed_weights=False)
         if isinstance(self.weights, str):
@@ -367,6 +428,26 @@ class MyGowerMetric:
         if self.number_of_clusters_ == -1:
             loader.select_number_of_clusters(X)
 
+    def collect_rank_mappings(self, data):
+        rank_mappings = []
+
+        ranks = pd.DataFrame(data).rank(method="average", axis=0).to_numpy()
+        for i in range(data.shape[1]):
+            unique_ranks = np.sort(np.unique(ranks[:, i]))
+            rank_mappings.append(unique_ranks)
+
+        return rank_mappings
+
+    def collect_ordinal_cardinalities(self, data):
+        ordinals_cardinality = []
+
+        for i in range(data.shape[1]):
+            unique_elements, counts = np.unique(data[:, i], return_counts=True)
+            occurrences_sorted = np.array(sorted(dict(zip(unique_elements, counts)).items()))
+            ordinals_cardinality.append(occurrences_sorted[:, 1])
+
+        return ordinals_cardinality
+
     def __call__(
         self,
         vector_1: np.ndarray,
@@ -378,16 +459,22 @@ class MyGowerMetric:
             vector_2,
             self.weights,
             self.cat_nom_num,
+            self.cat_ord_num,
             self.bin_asym_num,
             self.ratio_scale_num,
             self.num_interval_num,
             self.cat_nom_idx,
+            self.cat_ord_idx,
             self.bin_asym_idx,
             self.ratio_scale_idx,
             self.num_interval_idx,
             self.ratio_scale_normalization,
             self.num_interval_normalization,
             self.ratio_scale_window,
+            self.cat_ord_rank_mappings,
+            self.cat_ord_cardinalities,
+            self.cat_ord_min_ranks_,
+            self.cat_ord_max_ranks_,
             self.ranges_,
             self.h_,
             self.n_features_in_,

@@ -6,8 +6,8 @@ class DataType(Enum):
     BINARY_SYMMETRIC = 0
     BINARY_ASYMMETRIC = 1
     CATEGORICAL_NOMINAL = 2
-    RATIO_SCALE = 3
-    ORDINAL = 4
+    CATEGORICAL_ORDINAL = 3
+    RATIO_SCALE = 4
     NUMERIC_INTERVAL = 5
 
 
@@ -24,8 +24,8 @@ class Data:
     cols_type_mapping = {
         "bin_sym": DataType.BINARY_SYMMETRIC,
         "cat_nom": DataType.CATEGORICAL_NOMINAL,
+        "cat_ord": DataType.CATEGORICAL_ORDINAL,
         "ratio": DataType.RATIO_SCALE,
-        "ordinal": DataType.ORDINAL,
         "num_interval": DataType.NUMERIC_INTERVAL,
         "NULL": None,
     }

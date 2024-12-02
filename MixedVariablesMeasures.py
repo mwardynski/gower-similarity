@@ -155,7 +155,7 @@ class Podani:
         self.bin_idx = self.dtypes == DataType.BINARY_SYMMETRIC
         self.cat_nom_idx = (self.dtypes == DataType.CATEGORICAL_NOMINAL)
         self.ratio_scale_idx = self.dtypes == DataType.RATIO_SCALE
-        self.ordinal_idx = self.dtypes == DataType.ORDINAL
+        self.ordinal_idx = self.dtypes == DataType.CATEGORICAL_ORDINAL
 
         self.bin_num = np.sum(self.bin_idx)
         self.cat_nom_num = np.sum(self.cat_nom_idx)
@@ -180,8 +180,6 @@ class Podani:
 
             self.min_ranks_ = np.array([sublist[0] for sublist in self.rank_mappings])
             self.max_ranks_ = np.array([sublist[-1] for sublist in self.rank_mappings])
-            self.min_ordinals_ = np.min(ordinal_cols, axis=0)
-            self.max_ordinals_ = np.max(ordinal_cols, axis=0)
             
 
     def collect_rank_mappings(self, data):
