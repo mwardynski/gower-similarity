@@ -206,14 +206,14 @@ def test_check_non_zero_on_diagonal():
 
     enc = OrdinalEncoder()
     enc.set_params(encoded_missing_value=-1)
-    enc.fit(data)
-    data = enc.transform(data)
+    enc.fit(data[:, 0:3])
+    data[:, 0:3] = enc.transform(data[:, 0:3])
+    data = np.ndarray.astype(data, dtype=np.float64)
 
     gower.fit(data)
     dist_matrix = squareform(pdist(data, metric=gower))
 
     assert np.sum(np.diagonal(dist_matrix)) == 0
-
 
 def test_nan_max_dist():
     data = pd.DataFrame(

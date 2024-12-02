@@ -220,11 +220,12 @@ class GowerMetricDummy:
                 )
 
         loader = GowerMetricWeights(self)
-        if self.weights == "precomputed":
-            loader.load_weights(self.precomputed_weights_file)
-        elif self.weights == "cpcc":
-            self.weights = np.ones(self.n_features_in_)
-            loader.select_weights(X)
+        if isinstance(self.weights, str):
+            if self.weights == "precomputed":
+                loader.load_weights(self.precomputed_weights_file)
+            elif self.weights == "cpcc":
+                self.weights = np.ones(self.n_features_in_)
+                loader.select_weights(X)
 
         if self.weights is not None:
             loader.select_number_of_clusters(X)
