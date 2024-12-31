@@ -386,3 +386,16 @@ def test_podani_ord():
     tolerance = 0.0001
     assert res-expected_result < tolerance
 
+def test_numeric_intervals():
+    data = np.array([
+        [10],
+        [30]
+    ], dtype=np.float64)
+
+    gower = MyGowerMetric(
+        dtypes=np.array([DataType.NUMERIC_INTERVAL])
+    )
+    gower.fit(data)
+    
+    distance = gower(data[0], data[1])
+    assert distance == 0.0
