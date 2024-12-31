@@ -9,6 +9,7 @@ class DataType(Enum):
     CATEGORICAL_ORDINAL = 3
     RATIO_SCALE = 4
     NUMERIC_INTERVAL = 5
+    ORDINAL = 6
 
 
 @dataclass

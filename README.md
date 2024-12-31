@@ -3,7 +3,8 @@ Implementation of Gower's Metric in Python.
 
 # ToDo
 - [x] Add numeric interval support
-- [ ] Add tests for numeric interval
+- [x] Add tests for numeric interval simple
+- [ ] Add tests for numeric interval complex
 - [ ] Podani for rest variables
 - [ ] CI/CD
 
