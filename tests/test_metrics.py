@@ -399,3 +399,36 @@ def test_numeric_intervals():
     
     distance = gower(data[0], data[1])
     assert distance == 0.0
+
+def test_numeric_intervals_advanced_no_weights():
+    data = np.array([
+        [10.0,  20.0,  np.nan],
+        [30.0,  15.0,  40.0   ],
+        [10.0,  15.0,  60.0   ],
+        [-5.0,  15.0,  40.0   ],
+        [10.0,  20.0,  40.0   ]
+    ], dtype=np.float64)
+
+    dtypes = np.array([
+        DataType.NUMERIC_INTERVAL,
+        DataType.NUMERIC_INTERVAL,
+        DataType.NUMERIC_INTERVAL
+    ])
+    gower = MyGowerMetric(
+        dtypes=dtypes,
+        nan_values_handling="ignore"
+    )
+    gower.fit(data)
+
+    dist_0_1 = gower(data[0], data[1])
+    assert dist_0_1 == 0.0, f"Spodziewano dystansu 0.0, otrzymano {dist_0_1}"
+
+    dist_1_2 = gower(data[1], data[2])
+    expected_1_2 = 1.0 / 3.0
+    np.testing.assert_allclose(dist_1_2, expected_1_2, atol=1e-5,
+        err_msg=f"Dystans (1->2) powinien wynosić ~{expected_1_2}, a jest {dist_1_2}")
+
+    dist_1_3 = gower(data[1], data[3])
+    expected_1_3 = 2.0 / 3.0
+    np.testing.assert_allclose(dist_1_3, expected_1_3, atol=1e-5,
+        err_msg=f"Dystans (1->3) powinien wynosić ~{expected_1_3}, a jest {dist_1_3}")

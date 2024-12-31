@@ -46,3 +46,6 @@ htmlcov/
 
 # Ignore Poetry files
 poetry.lock
+.Rproj.user
+.RData
+.Rhistory

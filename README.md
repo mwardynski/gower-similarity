@@ -4,7 +4,9 @@ Implementation of Gower's Metric in Python.
 # ToDo
 - [x] Add numeric interval support
 - [x] Add tests for numeric interval simple
-- [ ] Add tests for numeric interval complex
+- [x] Add tests for numeric interval complex
+- [ ] Fix all warnings
+- [ ] Add tests in `R` environment
 - [ ] Podani for rest variables
 - [ ] CI/CD
 

@@ -48,8 +48,11 @@ def gower_metric_call_func(
         Rt = np.abs(num_int_cols_1 - num_int_cols_2)
         num_int_dist = 1 - (np.abs(num_int_cols_1 - num_int_cols_2) / Rt)
 
-        # if both variables are nonmissing then 1
-        num_int_dist[np.isnan(num_int_cols_1) | np.isnan(num_int_cols_2)] = 1.0
+        zero_mask = (Rt == 0.0)
+        num_int_dist[zero_mask] = 1.0
+
+        nan_mask = np.isnan(num_int_dist)
+        num_int_dist[nan_mask] = 1.0
 
         # NaN values handling
         if nan_values_handling == "raise":
