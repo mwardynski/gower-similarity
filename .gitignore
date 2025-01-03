@@ -49,3 +49,6 @@ poetry.lock
 .Rproj.user
 .RData
 .Rhistory
+
+# Other
+results/

@@ -6,7 +6,7 @@ Implementation of Gower's Metric in Python.
 - [x] Add tests for numeric interval simple
 - [x] Add tests for numeric interval complex
 - [ ] Fix all warnings
-- [ ] Add tests in `R` environment
+- [x] Add tests in `R` environment
 - [ ] Podani for rest variables
 - [ ] CI/CD
 

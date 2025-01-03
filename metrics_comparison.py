@@ -29,7 +29,7 @@ from utils import Dataset, Data, DataType
 from GowerMetric import MyGowerMetric
 
 
-DATASET_DIR = "./metrics_comparison_datasets/"
+DATASET_DIR = "./tests/tests_files/"
 
 TEST_METRICS_NAMES = [
     "euclidean",
@@ -218,6 +218,9 @@ def scores(metric: Union[str, MyGowerMetric], data: Data, name: str, labeled: bo
 
     return c, i, rand, complete, f_m_score, mutual, knn_score, f1
 
+def create_results_dir():
+    if not os.path.exists("./results"):
+        os.makedirs("./results")
 
 def add_header(header, task):
     with open(f"./results/test_results_{task}.txt", "a") as file:
@@ -301,8 +304,9 @@ def calc_ranks():
 
 
 if __name__ == '__main__':
-    calc_ranks()
-    exit(0)
+    create_results_dir()
+    # calc_ranks()
+    # exit(0)
 
     D = load_sets()
     print(f"Loaded sets: {list(D.data.keys())}")
@@ -362,7 +366,7 @@ if __name__ == '__main__':
         print(f"Dataset: {dataset_name} ... {(completed / len(datasets_names) * 100):.2f}%")
         for task in ["knn"]:
             add_header(dataset_name, task)
-            gower = GowerMetric(
+            gower = MyGowerMetric(
                 D.cols_type[dataset_name],
                 **config
             )
