@@ -2,7 +2,7 @@ from typing import Optional, Union
 
 import numpy as np
 from numba import njit
-import pandas as pd
+from scipy.stats import rankdata
 
 from utils import DataType
 from weights import GowerMetricWeights
@@ -431,15 +431,17 @@ class MyGowerMetric:
         if self.number_of_clusters_ == -1:
             loader.select_number_of_clusters(X)
 
+
     def collect_rank_mappings(self, data):
         rank_mappings = []
 
-        ranks = pd.DataFrame(data).rank(method="average", axis=0).to_numpy()
+        ranks = np.apply_along_axis(rankdata, 0, data, method="average")
         for i in range(data.shape[1]):
             unique_ranks = np.sort(np.unique(ranks[:, i]))
             rank_mappings.append(unique_ranks)
 
         return rank_mappings
+
 
     def collect_ordinal_cardinalities(self, data):
         ordinals_cardinality = []
