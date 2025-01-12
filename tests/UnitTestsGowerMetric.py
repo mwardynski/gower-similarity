@@ -359,7 +359,7 @@ def test_podani_opt_cat_ord():
             ['low', 'M'],
             ['high', 'S'],
             ['medium', 'L'],
-            ['low', 'XL'],
+            ['low', 'L'],
             ['medium', 'XXL']
         ]
     )
@@ -372,7 +372,7 @@ def test_podani_opt_cat_ord():
     )
 
     enc = OrdinalEncoder(
-        categories="auto",
+        categories=[['low', 'medium', 'high'], ['S', 'M', 'L', 'XL', 'XXL']],
         dtype=np.float64,
         handle_unknown="use_encoded_value",
         unknown_value=np.nan,
@@ -384,10 +384,8 @@ def test_podani_opt_cat_ord():
 
     gower.fit(data)
     res = gower(data[0], data[1])
-    expected_result = 0.2917
-    tolerance = 0.0001
-    assert res-expected_result < tolerance
-
+    expected_result = 0.625
+    assert np.isclose(res, expected_result)
 
 def test_podani_opt_cat_ord_with_nans():
     data = pd.DataFrame(
@@ -409,7 +407,7 @@ def test_podani_opt_cat_ord_with_nans():
     )
 
     enc = OrdinalEncoder(
-        categories="auto",
+        categories=[['low', 'medium', 'high'], ['S', 'M', 'L', 'XL', 'XXL']],
         dtype=np.float64,
         handle_unknown="use_encoded_value",
         unknown_value=np.nan,
@@ -417,10 +415,9 @@ def test_podani_opt_cat_ord_with_nans():
     )
     enc.fit(data)
     data = enc.transform(data)
-    data = np.where(np.isnan(data), np.nan, data.astype(np.int32))
+    data = np.where(np.isnan(data), np.nan, data.astype(int))
 
     gower.fit(data)
-    res = gower(data[1], data[2])
-    expected_result = 1
-    tolerance = 0.0001
-    assert res-expected_result < tolerance
+    res = gower(data[2], data[4])
+    expected_result = 0
+    assert np.isclose(res, expected_result)

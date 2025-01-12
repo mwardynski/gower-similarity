@@ -106,39 +106,44 @@ def gower_metric_call_func(
             cat_ord_dist[cat_ord_calc_skip] = 0.0
         elif nan_values_handling == "max_dist":
             cat_ord_dist[cat_ord_calc_skip] = 1.0
-        
-        rank_col_1 = np.zeros(cat_ord_num)
-        rank_col_2 = np.zeros(cat_ord_num)
-        for i in range(cat_ord_num):
-            if cat_ord_calc_skip[i]:
-                continue
-            mapping = cat_ord_rank_mappings[i]
-            rank_col_1[i] = mapping[int(ordinal_cols_1[i])]
-            rank_col_2[i] = mapping[int(ordinal_cols_2[i])]
 
-        abs_ranks_dist = np.zeros(cat_ord_num)
-        abs_ranks_dist[~cat_ord_calc_skip] = np.abs(rank_col_1[~cat_ord_calc_skip] - rank_col_2[~cat_ord_calc_skip])
+        cat_ord_calc_skip_same = ordinal_cols_1 == ordinal_cols_2
+        cat_ord_dist[cat_ord_calc_skip_same] = 0.0
+        cat_ord_calc_skip |= cat_ord_calc_skip_same
         
-        first_ordinal_occur = np.zeros(cat_ord_num)
-        second_ordinal_occur = np.zeros(cat_ord_num)
-        max_ordinal_occur = np.zeros(cat_ord_num)
-        min_ordinal_occur = np.zeros(cat_ord_num)
-        for i in range(cat_ord_num):
-            if cat_ord_calc_skip[i]:
-                continue
-            first_ordinal_occur[i] = cat_ord_cardinalities[i][int(ordinal_cols_1[i])]
-            second_ordinal_occur[i] = cat_ord_cardinalities[i][int(ordinal_cols_2[i])]
-            max_ordinal_occur[i] = cat_ord_cardinalities[i][-1]
-            min_ordinal_occur[i] = cat_ord_cardinalities[i][0]
+        if np.any(~cat_ord_calc_skip):
+            rank_col_1 = np.zeros(cat_ord_num)
+            rank_col_2 = np.zeros(cat_ord_num)
+            for i in range(cat_ord_num):
+                if cat_ord_calc_skip[i]:
+                    continue
+                mapping = cat_ord_rank_mappings[i]
+                rank_col_1[i] = mapping[int(ordinal_cols_1[i])]
+                rank_col_2[i] = mapping[int(ordinal_cols_2[i])]
 
-        first_ordinal_occur[~cat_ord_calc_skip] = (first_ordinal_occur[~cat_ord_calc_skip] - 1) / 2
-        second_ordinal_occur[~cat_ord_calc_skip] = (second_ordinal_occur[~cat_ord_calc_skip] - 1) / 2
-        max_ordinal_occur[~cat_ord_calc_skip] = (max_ordinal_occur[~cat_ord_calc_skip] - 1) / 2
-        min_ordinal_occur[~cat_ord_calc_skip] = (min_ordinal_occur[~cat_ord_calc_skip] - 1) / 2
+            abs_ranks_dist = np.zeros(cat_ord_num)
+            abs_ranks_dist[~cat_ord_calc_skip] = np.abs(rank_col_1[~cat_ord_calc_skip] - rank_col_2[~cat_ord_calc_skip])
+            
+            first_ordinal_occur = np.zeros(cat_ord_num)
+            second_ordinal_occur = np.zeros(cat_ord_num)
+            max_ordinal_occur = np.zeros(cat_ord_num)
+            min_ordinal_occur = np.zeros(cat_ord_num)
+            for i in range(cat_ord_num):
+                if cat_ord_calc_skip[i]:
+                    continue
+                first_ordinal_occur[i] = cat_ord_cardinalities[i][int(ordinal_cols_1[i])]
+                second_ordinal_occur[i] = cat_ord_cardinalities[i][int(ordinal_cols_2[i])]
+                max_ordinal_occur[i] = cat_ord_cardinalities[i][-1]
+                min_ordinal_occur[i] = cat_ord_cardinalities[i][0]
 
-        cat_ord_dist[~cat_ord_calc_skip] = (abs_ranks_dist[~cat_ord_calc_skip] - first_ordinal_occur[~cat_ord_calc_skip] - second_ordinal_occur[~cat_ord_calc_skip]) / \
-                                (cat_ord_max_ranks_[~cat_ord_calc_skip] - cat_ord_min_ranks_[~cat_ord_calc_skip] - max_ordinal_occur[~cat_ord_calc_skip] - min_ordinal_occur[~cat_ord_calc_skip])
-        
+            first_ordinal_occur[~cat_ord_calc_skip] = (first_ordinal_occur[~cat_ord_calc_skip] - 1) / 2
+            second_ordinal_occur[~cat_ord_calc_skip] = (second_ordinal_occur[~cat_ord_calc_skip] - 1) / 2
+            max_ordinal_occur[~cat_ord_calc_skip] = (max_ordinal_occur[~cat_ord_calc_skip] - 1) / 2
+            min_ordinal_occur[~cat_ord_calc_skip] = (min_ordinal_occur[~cat_ord_calc_skip] - 1) / 2
+
+            cat_ord_dist[~cat_ord_calc_skip] = (abs_ranks_dist[~cat_ord_calc_skip] - first_ordinal_occur[~cat_ord_calc_skip] - second_ordinal_occur[~cat_ord_calc_skip]) / \
+                                    (cat_ord_max_ranks_[~cat_ord_calc_skip] - cat_ord_min_ranks_[~cat_ord_calc_skip] - max_ordinal_occur[~cat_ord_calc_skip] - min_ordinal_occur[~cat_ord_calc_skip])
+            
         if weights is not None:
             cat_ord_dist = cat_ord_dist @ weights[ratio_scale_idx]
         else:
@@ -235,7 +240,7 @@ class MyGowerMetric:
         precomputed_weights_file: Optional[str] = None,
         nan_values_handling: str = "raise",
         number_of_clusters=None,
-        verbose: int = 0,
+        verbose: int = 0
     ):
         assert (
             weights is None
