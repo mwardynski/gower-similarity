@@ -37,7 +37,7 @@ def gower_metric_call_func(
     assert n_features_in_ == len(vector_1)
     assert n_features_in_ == len(vector_2)
 
-    cat_nom_ignored_num, bin_asym_ignored_num, ratio_scale_ignored_num, num_int_ignored_num = 0, 0, 0, 0
+    cat_nom_ignored_num, cat_ord_ignored_num, bin_asym_ignored_num, ratio_scale_ignored_num, num_int_ignored_num = 0, 0, 0, 0, 0
 
     # numeric interval section
     if num_interval_num > 0:
@@ -84,7 +84,7 @@ def gower_metric_call_func(
             cat_nom_ignored = np.isnan(cat_nom_cols_1) | np.isnan(cat_nom_cols_2)
             cat_nom_ignored_num = np.sum(cat_nom_ignored)
             cat_nom_dist[cat_nom_ignored] = 0.0
-        elif nan_values_handling == "mas_dist":
+        elif nan_values_handling == "max_dist":
             cat_nom_dist[np.isnan(cat_nom_cols_1) | np.isnan(cat_nom_cols_2)] = 1.0
 
         if weights is not None:
@@ -97,33 +97,47 @@ def gower_metric_call_func(
     if cat_ord_num > 0:
         ordinal_cols_1 = vector_1[cat_ord_idx]
         ordinal_cols_2 = vector_2[cat_ord_idx]
+
+        cat_ord_dist = np.zeros(ordinal_cols_1.size)
+
+        cat_ord_calc_skip = np.isnan(ordinal_cols_1) | np.isnan(ordinal_cols_2)
+        if nan_values_handling == "ignore":
+            cat_ord_ignored_num = np.sum(cat_ord_calc_skip)
+            cat_ord_dist[cat_ord_calc_skip] = 0.0
+        elif nan_values_handling == "max_dist":
+            cat_ord_dist[cat_ord_calc_skip] = 1.0
         
-        rank_col_1 = np.zeros(ordinal_cols_1.shape[0])
-        rank_col_2 = np.zeros(ordinal_cols_2.shape[0])
-        for i in range(vector_1.shape[0]):
+        rank_col_1 = np.zeros(cat_ord_num)
+        rank_col_2 = np.zeros(cat_ord_num)
+        for i in range(cat_ord_num):
+            if cat_ord_calc_skip[i]:
+                continue
             mapping = cat_ord_rank_mappings[i]
             rank_col_1[i] = mapping[int(ordinal_cols_1[i])]
             rank_col_2[i] = mapping[int(ordinal_cols_2[i])]
 
-        abs_ranks_dist = np.abs(rank_col_1 - rank_col_2)
+        abs_ranks_dist = np.zeros(cat_ord_num)
+        abs_ranks_dist[~cat_ord_calc_skip] = np.abs(rank_col_1[~cat_ord_calc_skip] - rank_col_2[~cat_ord_calc_skip])
         
         first_ordinal_occur = np.zeros(cat_ord_num)
         second_ordinal_occur = np.zeros(cat_ord_num)
         max_ordinal_occur = np.zeros(cat_ord_num)
         min_ordinal_occur = np.zeros(cat_ord_num)
         for i in range(cat_ord_num):
-            first_ordinal_occur[i] = cat_ord_cardinalities[i][ordinal_cols_1[i]]
-            second_ordinal_occur[i] = cat_ord_cardinalities[i][ordinal_cols_2[i]]
+            if cat_ord_calc_skip[i]:
+                continue
+            first_ordinal_occur[i] = cat_ord_cardinalities[i][int(ordinal_cols_1[i])]
+            second_ordinal_occur[i] = cat_ord_cardinalities[i][int(ordinal_cols_2[i])]
             max_ordinal_occur[i] = cat_ord_cardinalities[i][-1]
             min_ordinal_occur[i] = cat_ord_cardinalities[i][0]
 
-        first_ordinal_occur = (first_ordinal_occur - 1) / 2
-        second_ordinal_occur = (second_ordinal_occur - 1) / 2
-        max_ordinal_occur = (max_ordinal_occur - 1) / 2
-        min_ordinal_occur = (min_ordinal_occur - 1) / 2
+        first_ordinal_occur[~cat_ord_calc_skip] = (first_ordinal_occur[~cat_ord_calc_skip] - 1) / 2
+        second_ordinal_occur[~cat_ord_calc_skip] = (second_ordinal_occur[~cat_ord_calc_skip] - 1) / 2
+        max_ordinal_occur[~cat_ord_calc_skip] = (max_ordinal_occur[~cat_ord_calc_skip] - 1) / 2
+        min_ordinal_occur[~cat_ord_calc_skip] = (min_ordinal_occur[~cat_ord_calc_skip] - 1) / 2
 
-        cat_ord_dist = (abs_ranks_dist - first_ordinal_occur - second_ordinal_occur) / \
-                                (cat_ord_max_ranks_ - cat_ord_min_ranks_ - max_ordinal_occur - min_ordinal_occur)
+        cat_ord_dist[~cat_ord_calc_skip] = (abs_ranks_dist[~cat_ord_calc_skip] - first_ordinal_occur[~cat_ord_calc_skip] - second_ordinal_occur[~cat_ord_calc_skip]) / \
+                                (cat_ord_max_ranks_[~cat_ord_calc_skip] - cat_ord_min_ranks_[~cat_ord_calc_skip] - max_ordinal_occur[~cat_ord_calc_skip] - min_ordinal_occur[~cat_ord_calc_skip])
         
         if weights is not None:
             cat_ord_dist = cat_ord_dist @ weights[ratio_scale_idx]
@@ -150,7 +164,7 @@ def gower_metric_call_func(
             bin_asym_ignored = np.isnan(bin_asym_cols_1) | np.isnan(bin_asym_cols_2)
             bin_asym_ignored_num = np.sum(bin_asym_ignored)
             bin_asym_dist[bin_asym_ignored] = 0.0
-        elif nan_values_handling == "mas_dist":
+        elif nan_values_handling == "max_dist":
             bin_asym_dist[
                 np.isnan(bin_asym_cols_1) | np.isnan(bin_asym_cols_2)
             ] = 1.0
@@ -183,7 +197,7 @@ def gower_metric_call_func(
             ratio_scale_ignored = np.isnan(ratio_scale_cols_1) | np.isnan(ratio_scale_cols_2)
             ratio_scale_ignored_num = np.sum(ratio_scale_ignored)
             ratio_dist[ratio_scale_ignored] = 0.0
-        elif nan_values_handling == "mas_dist":
+        elif nan_values_handling == "max_dist":
             ratio_dist[
                 np.isnan(ratio_scale_cols_1) | np.isnan(ratio_scale_cols_2)
                 ] = 1.0
@@ -204,7 +218,7 @@ def gower_metric_call_func(
     distance = cat_nom_dist + bin_asym_dist + ratio_dist + num_int_dist + cat_ord_dist
 
     # Normalization
-    distance /= (n_features_in_ - cat_nom_ignored_num - bin_asym_ignored_num - ratio_scale_ignored_num - num_int_ignored_num)
+    distance /= (n_features_in_ - cat_nom_ignored_num - cat_ord_ignored_num - bin_asym_ignored_num - ratio_scale_ignored_num - num_int_ignored_num)
 
     return distance
 
@@ -414,6 +428,11 @@ class MyGowerMetric:
         if self.cat_ord_num > 0:
             ordinal_cols = X[:, self.cat_ord_idx]
 
+            nan_indices = np.where(np.isnan(ordinal_cols))
+            if self.nan_values_handling == "raise":
+                if not all(isinstance(item, np.ndarray) and item.size == 0 for item in nan_indices):
+                    raise ValueError
+
             self.cat_ord_rank_mappings = self.collect_rank_mappings(ordinal_cols)
             self.cat_ord_cardinalities = self.collect_ordinal_cardinalities(ordinal_cols)
 
@@ -431,13 +450,19 @@ class MyGowerMetric:
         if self.number_of_clusters_ == -1:
             loader.select_number_of_clusters(X)
 
-
+   
     def collect_rank_mappings(self, data):
         rank_mappings = []
 
-        ranks = np.apply_along_axis(rankdata, 0, data, method="average")
+        ranks = np.empty_like(data, dtype=float)
+        for col in range(data.shape[1]):
+            column = data[:, col]
+            valid_indices = ~np.isnan(column)
+            ranks[valid_indices, col] = rankdata(column[valid_indices], method="average")
+            ranks[~valid_indices, col] = np.nan
+
         for i in range(data.shape[1]):
-            unique_ranks = np.sort(np.unique(ranks[:, i]))
+            unique_ranks = np.sort(np.unique(ranks[~np.isnan(ranks[:, i]), i]))
             rank_mappings.append(unique_ranks)
 
         return rank_mappings
@@ -447,7 +472,9 @@ class MyGowerMetric:
         ordinals_cardinality = []
 
         for i in range(data.shape[1]):
-            unique_elements, counts = np.unique(data[:, i], return_counts=True)
+            column = data[:, i]
+            valid_values = column[~np.isnan(column)]
+            unique_elements, counts = np.unique(valid_values, return_counts=True)
             occurrences_sorted = np.array(sorted(dict(zip(unique_elements, counts)).items()))
             ordinals_cardinality.append(occurrences_sorted[:, 1])
 

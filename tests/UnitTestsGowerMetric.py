@@ -380,10 +380,49 @@ def test_podani_opt_cat_ord():
     )
     enc.fit(data)
     data = enc.transform(data)
-    data = np.ndarray.astype(data, dtype=np.int32)
+    data = np.where(np.isnan(data), np.nan, data.astype(int))
 
     gower.fit(data)
     res = gower(data[0], data[1])
     expected_result = 0.2917
     tolerance = 0.0001
     assert res-expected_result < tolerance
+
+
+def test_podani_opt_cat_ord_with_nans():
+    data = pd.DataFrame(
+        [
+            ['low', 'M'],
+            ['high', 'S'],
+            ['medium', np.nan],
+            [np.nan, 'XL'],
+            ['medium', 'XXL']
+        ]
+    )
+
+    gower = MyGowerMetric(
+        dtypes=np.array(
+            [DataType.CATEGORICAL_ORDINAL,
+             DataType.CATEGORICAL_ORDINAL]
+        ),
+        nan_values_handling='ignore'
+    )
+
+    enc = OrdinalEncoder(
+        categories="auto",
+        dtype=np.float64,
+        handle_unknown="use_encoded_value",
+        unknown_value=np.nan,
+        encoded_missing_value=np.nan
+    )
+    enc.fit(data)
+    data = enc.transform(data)
+    data = np.where(np.isnan(data), np.nan, data.astype(np.int32))
+
+    gower.fit(data)
+    res = gower(data[1], data[2])
+    expected_result = 1
+    tolerance = 0.0001
+    assert res-expected_result < tolerance
+
+test_podani_opt_cat_ord_with_nans()
