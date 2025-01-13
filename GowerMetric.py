@@ -62,6 +62,8 @@ def gower_metric_call_func(
             num_int_ignored = np.isnan(num_int_cols_1) | np.isnan(num_int_cols_2)
             num_int_ignored_num = np.sum(num_int_ignored)
             num_int_dist[num_int_ignored] = 0.0
+        elif nan_values_handling == "max_dist":
+            num_int_dist[np.isnan(num_int_cols_1) | np.isnan(num_int_cols_2)] = 1.0
 
         if weights is not None:
             num_int_dist = num_int_dist @ weights[num_interval_idx]
