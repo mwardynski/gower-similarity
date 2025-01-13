@@ -1,6 +1,7 @@
 from typing import Optional, Union
 
 import numpy as np
+import optuna
 from numba import njit
 from scipy.stats import rankdata
 
@@ -413,12 +414,14 @@ class MyGowerMetric:
                     from optuna.integration import OptunaSearchCV
                     from sklearn.neighbors import KernelDensity
 
+                    optuna.logging.set_verbosity(optuna.logging.ERROR)
+
                     self.h_ = []
                     for i in range(self.ratio_scale_num):
                         clf = KernelDensity()
                         param_distributions = {
                             "bandwidth": optuna.distributions.FloatDistribution(
-                                1e-08, 1e06, log=True
+                                1e-08, 1e06, log=False
                             )
                         }
                         optuna_search = OptunaSearchCV(

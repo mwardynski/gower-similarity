@@ -45,7 +45,7 @@ LABELED_DATASETS = [
     "adult",
     "diabetes",
     "car_insurance_claim",
-    "survey",
+    # "survey",
 ]
 
 TASKS = [
@@ -110,12 +110,11 @@ def ioa(O, P):
 
 
 def scores(metric: Union[str, MyGowerMetric], data: Data, name: str, labeled: bool, task: str, random_state: int = 0):
-    number_of_records = 500
-
     # -------------------------- Data preprocessing --------------------------
     cols_types = data.cols_type[name]
     df = np.copy(data.data[name])
     df = shuffle(df)
+    number_of_records = 500
     df = df[:number_of_records]
     df = fill_na(df)
 
@@ -127,11 +126,11 @@ def scores(metric: Union[str, MyGowerMetric], data: Data, name: str, labeled: bo
         encoded_missing_value=np.nan,
     )
 
-    # Categorical Nominal columns
+    # Categorical Nominal and Binary Symmetric columns
     cat_nom_cols = [
         i
         for i in range(len(cols_types))
-        if cols_types[i] == DataType.CATEGORICAL_NOMINAL
+        if cols_types[i] in (DataType.BINARY_SYMMETRIC, DataType.CATEGORICAL_NOMINAL)
     ]
 
     if labeled:
@@ -163,7 +162,12 @@ def scores(metric: Union[str, MyGowerMetric], data: Data, name: str, labeled: bo
     # ------------------------------------------------------------------------
 
     if isinstance(metric, MyGowerMetric):
-        metric.fit(df)
+        try:
+            metric.fit(df)
+        except Exception as e:
+            print(f"Error with metric: {metric}")
+            print(e)
+            return -1, -1, -1, -1, -1, -1, -1, -1
 
     if task == "hierarchical":
         Z = linkage(df, method="average", metric=metric)
@@ -187,9 +191,9 @@ def scores(metric: Union[str, MyGowerMetric], data: Data, name: str, labeled: bo
             return -1, -1, -1, -1, -1, -1, -1, -1
 
     elif task == "knn":
-        if np.isnan(df).any():
-            imputer = SimpleImputer(strategy='mean')
-            df = imputer.fit_transform(df)
+        # if np.isnan(df).any():
+        #     imputer = SimpleImputer(strategy='mean')
+        #     df = imputer.fit_transform(df)
 
         X_train, X_test, y_train, y_test = train_test_split(
             df, y, test_size=0.2
