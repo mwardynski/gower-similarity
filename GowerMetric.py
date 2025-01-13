@@ -44,9 +44,8 @@ def gower_metric_call_func(
         num_int_cols_1 = vector_1[num_interval_idx]
         num_int_cols_2 = vector_2[num_interval_idx]
 
-        # max - min
         Rt = np.abs(num_int_cols_1 - num_int_cols_2)
-        num_int_dist = 1 - (np.abs(num_int_cols_1 - num_int_cols_2) / Rt)
+        num_int_dist = 1 - np.where(Rt != 0, np.abs(num_int_cols_1 - num_int_cols_2) / Rt, 0)
 
         zero_mask = (Rt == 0.0)
         num_int_dist[zero_mask] = 1.0
@@ -225,7 +224,8 @@ def gower_metric_call_func(
     distance = cat_nom_dist + bin_asym_dist + ratio_dist + num_int_dist + cat_ord_dist
 
     # Normalization
-    distance /= (n_features_in_ - cat_nom_ignored_num - cat_ord_ignored_num - bin_asym_ignored_num - ratio_scale_ignored_num - num_int_ignored_num)
+    if distance != 0:
+        distance /= (n_features_in_ - cat_nom_ignored_num - cat_ord_ignored_num - bin_asym_ignored_num - ratio_scale_ignored_num - num_int_ignored_num)
 
     return distance
 

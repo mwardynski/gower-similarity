@@ -25,6 +25,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import OrdinalEncoder
 from sklearn.utils import shuffle
+from sklearn.impute import SimpleImputer
 
 from utils import Dataset, Data, DataType
 from GowerMetric import MyGowerMetric
@@ -44,6 +45,7 @@ LABELED_DATASETS = [
     "adult",
     "diabetes",
     "car_insurance_claim",
+    "survey",
 ]
 
 TASKS = [
@@ -185,6 +187,10 @@ def scores(metric: Union[str, MyGowerMetric], data: Data, name: str, labeled: bo
             return -1, -1, -1, -1, -1, -1, -1, -1
 
     elif task == "knn":
+        if np.isnan(df).any():
+            imputer = SimpleImputer(strategy='mean')
+            df = imputer.fit_transform(df)
+
         X_train, X_test, y_train, y_test = train_test_split(
             df, y, test_size=0.2
         )
@@ -226,12 +232,12 @@ def save_result(metric, task, c, i, rand, complete, f_m_score, mutual, knn_score
     with open(f"./results/test_results_{task}.txt", "a") as file:
         if task == "hierarchical":
             file.write(
-                f"{metric},"
+                f"{metric}, "
                 f"{rand:.4f}, {complete:.4f}, {f_m_score:.4f}, {mutual:.4f}, {c:.4f}, {i:.4f}\n"
             )
         elif task == "knn":
             file.write(
-                f"{metric},"
+                f"{metric}, "
                 f"{knn_score:.4f}, {f1:.4f}\n"
             )
 
