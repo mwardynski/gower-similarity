@@ -1,11 +1,12 @@
 import os.path
+import os
+import shutil
 from os import listdir
 from os.path import isfile
 from typing import Union
 
 import numpy as np
 import pandas as pd
-from hdbscan import HDBSCAN
 from scipy.spatial.distance import pdist
 from scipy.cluster.hierarchy import (
     linkage,
@@ -40,20 +41,13 @@ TEST_METRICS_NAMES = [
 ]
 
 LABELED_DATASETS = [
-    "abalone",
     "adult",
-    "arrhythmia",
-    "bands",
-    "pm2.5_data_of_5_chinese_cities",
-    "spambase",
-    "spam",
-    "breast_cancer_wisconsin",
-    "kr-vs-kp"
+    "diabetes",
+    "car_insurance_claim",
 ]
 
 TASKS = [
     "hierarchical",
-    "hdbscan",
     "knn"
 ]
 
@@ -87,6 +81,10 @@ def load_sets():
     D = Data(D_data, D_cols_type, D_labels)
     return D
 
+
+def delete_previous_results():
+    if os.path.exists("./results"):
+        shutil.rmtree("./results")
 
 def fill_na(data: np.array):
     data[data == ""] = -1
@@ -186,13 +184,6 @@ def scores(metric: Union[str, MyGowerMetric], data: Data, name: str, labeled: bo
             print("Predicted labels = 1!")
             return -1, -1, -1, -1, -1, -1, -1, -1
 
-    elif task == "hdbscan":
-        clusterer = HDBSCAN(metric="precomputed")
-        dist_matrix = pairwise_distances(X=df, metric=metric, n_jobs=-1)
-        clusterer.fit(X=dist_matrix, y=y)
-        pred_labels = clusterer.labels_
-
-        c, i, knn_score, f1 = None, None, None, None
     elif task == "knn":
         X_train, X_test, y_train, y_test = train_test_split(
             df, y, test_size=0.2
@@ -226,26 +217,22 @@ def add_header(header, task):
     with open(f"./results/test_results_{task}.txt", "a") as file:
         file.write(f"\n{header}")
         if task == "hierarchical":
-            file.write(f",Rand,Complete,F-M,Mutual,CPCC,IOA\n\n")
-        elif task == "hdbscan":
-            file.write(f",Rand,Complete,F-M,Mutual\n\n")
+            file.write(f", Rand, Complete, F-M, Mutual, CPCC, IOA\n\n")
         elif task == "knn":
-            file.write(f",KNN Score,F1\n\n")
+            file.write(f", KNN Score, F1\n\n")
 
 
 def save_result(metric, task, c, i, rand, complete, f_m_score, mutual, knn_score, f1):
     with open(f"./results/test_results_{task}.txt", "a") as file:
         if task == "hierarchical":
             file.write(
-                f"{metric},{rand},{complete},{f_m_score},{mutual},{c},{i}\n"
-            )
-        elif task == "hdbscan":
-            file.write(
-                f"{metric},{rand},{complete},{f_m_score},{mutual}\n"
+                f"{metric},"
+                f"{rand:.4f}, {complete:.4f}, {f_m_score:.4f}, {mutual:.4f}, {c:.4f}, {i:.4f}\n"
             )
         elif task == "knn":
             file.write(
-                f"{metric},{knn_score},{f1}\n"
+                f"{metric},"
+                f"{knn_score:.4f}, {f1:.4f}\n"
             )
 
 
@@ -304,6 +291,7 @@ def calc_ranks():
 
 
 if __name__ == '__main__':
+    delete_previous_results()
     create_results_dir()
     # calc_ranks()
     # exit(0)
@@ -363,13 +351,12 @@ if __name__ == '__main__':
 
     # All metrics
     for completed, dataset_name in enumerate(datasets_names):
-        print(f"Dataset: {dataset_name} ... {(completed / len(datasets_names) * 100):.2f}%")
-        for task in ["knn"]:
+        print(
+            f"Dataset: {dataset_name} ... {(completed / len(datasets_names) * 100):.2f}%"
+        )
+        for task in TASKS:
             add_header(dataset_name, task)
-            gower = MyGowerMetric(
-                D.cols_type[dataset_name],
-                **config
-            )
+            gower = MyGowerMetric(D.cols_type[dataset_name], **config)
 
             try:
                 c, i, rand, complete, f_m_score, mutual, knn_score, f1 = scores(
@@ -377,12 +364,14 @@ if __name__ == '__main__':
                     data=D,
                     name=dataset_name,
                     labeled=dataset_name in LABELED_DATASETS,
-                    task=task
-                )
+                    task=task)
             except Exception:
-                print(f"Error with gower metric, dataset: {dataset_name}, task: {task}")
+                print(
+                    f"Error with gower metric, dataset: {dataset_name}, task: {task}"
+                )
                 c, i, rand, complete, f_m_score, mutual, knn_score, f1 = -1, -1, -1, -1, -1, -1, -1, -1
-            save_result("gower", task, c, i, rand, complete, f_m_score, mutual, knn_score, f1)
+            save_result("gower", task, c, i, rand, complete, f_m_score, mutual,
+                        knn_score, f1)
 
             for metric_name in TEST_METRICS_NAMES:
                 try:
@@ -391,12 +380,14 @@ if __name__ == '__main__':
                         data=D,
                         name=dataset_name,
                         labeled=dataset_name in LABELED_DATASETS,
-                        task=task
-                        )
+                        task=task)
                 except Exception as e:
-                    print(f"Error with {metric_name} metric, dataset: {dataset_name}, task: {task}")
+                    print(
+                        f"Error with {metric_name} metric, dataset: {dataset_name}, task: {task}"
+                    )
                     print(e)
                     c, i, rand, complete, f_m_score, mutual, knn_score, f1 = -1, -1, -1, -1, -1, -1, -1, -1
-                save_result(metric_name, task, c, i, rand, complete, f_m_score, mutual, knn_score, f1)
+                save_result(metric_name, task, c, i, rand, complete, f_m_score,
+                            mutual, knn_score, f1)
 
     print("Completed ... 100%")
