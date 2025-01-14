@@ -1,7 +1,7 @@
 from typing import Optional, Union
 
 import numpy as np
-import optuna
+import warnings
 from numba import njit
 from scipy.stats import rankdata
 
@@ -413,8 +413,10 @@ class MyGowerMetric:
                     import optuna
                     from optuna.integration import OptunaSearchCV
                     from sklearn.neighbors import KernelDensity
+                    from optuna.exceptions import ExperimentalWarning
 
                     optuna.logging.set_verbosity(optuna.logging.ERROR)
+                    warnings.filterwarnings("ignore", category = ExperimentalWarning)
 
                     self.h_ = []
                     for i in range(self.ratio_scale_num):
