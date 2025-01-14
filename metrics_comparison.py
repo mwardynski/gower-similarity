@@ -97,9 +97,6 @@ def fill_na(data: np.array):
 def cpcc(X, Z):
     try:
         result = cophenet(Z, X)
-        c, d = result
-        if c is None or d is None or np.isnan(c) or np.isnan(d) or np.isinf(c) or np.isinf(d):
-            return 0.0, 0.0
         return result
     except Exception as e:
         return 0.0, 0.0
