@@ -7,6 +7,7 @@ from typing import Union
 
 import numpy as np
 import pandas as pd
+from hdbscan import HDBSCAN
 from scipy.spatial.distance import pdist
 from scipy.cluster.hierarchy import (
     linkage,
@@ -45,12 +46,12 @@ LABELED_DATASETS = [
     "adult",
     "diabetes",
     "car_insurance_claim",
-    # "survey",
 ]
 
 TASKS = [
     "hierarchical",
-    "knn"
+    "knn",
+    "hdbscan"
 ]
 
 
@@ -97,6 +98,9 @@ def fill_na(data: np.array):
 def cpcc(X, Z):
     try:
         result = cophenet(Z, X)
+        _, d = result
+        if not np.any(d):
+            return 0.0, 0.0
         return result
     except Exception as e:
         return 0.0, 0.0
@@ -200,6 +204,14 @@ def scores(metric: Union[str, MyGowerMetric], data: Data, name: str, labeled: bo
             print(f"Error with hierarchical clustering, metric: {metric}")
             print(e)
             return -1, -1, -1, -1, -1, -1, -1, -1
+        
+    elif task == "hdbscan":
+        clusterer = HDBSCAN(metric="precomputed")
+        dist_matrix = pairwise_distances(X=df, metric=metric, n_jobs=-1)
+        clusterer.fit(X=dist_matrix, y=y)
+        pred_labels = clusterer.labels_
+
+        c, i, knn_score, f1 = None, None, None, None
 
     elif task == "knn":
         X_train, X_test, y_train, y_test = train_test_split(
@@ -237,6 +249,8 @@ def add_header(header, task):
             file.write(f", Rand, Complete, F-M, Mutual, CPCC, IOA\n\n")
         elif task == "knn":
             file.write(f", KNN Score, F1\n\n")
+        elif task == "hdbscan":
+            file.write(f",Rand,Complete,F-M,Mutual\n\n")
 
 
 def save_result(metric, task, c, i, rand, complete, f_m_score, mutual, knn_score, f1):
@@ -250,6 +264,11 @@ def save_result(metric, task, c, i, rand, complete, f_m_score, mutual, knn_score
             file.write(
                 f"{metric}, "
                 f"{knn_score:.4f}, {f1:.4f}\n"
+            )
+        elif task == "hdbscan":
+            file.write(
+                f"{metric}, "
+                f"{rand:.4f}, {complete:.4f}, {f_m_score:.4f}, {mutual:.4f}\n"
             )
 
 
