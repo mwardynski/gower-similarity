@@ -95,17 +95,27 @@ def fill_na(data: np.array):
 
 
 def cpcc(X, Z):
-    return cophenet(Z, X)
+    try:
+        result = cophenet(Z, X)
+        c, d = result
+        if c is None or d is None or np.isnan(c) or np.isnan(d) or np.isinf(c) or np.isinf(d):
+            return 0.0, 0.0
+        return result
+    except Exception as e:
+        return 0.0, 0.0
 
 
 def ioa(O, P):
-    O_ = np.average(O)
-    numerator = np.sum(np.power(P - O, 2))
-    denominator = np.sum(np.power(np.absolute(P - O_) + np.absolute(O - O_), 2))
-    if denominator == 0:
+    try:
+        O_ = np.average(O)
+        numerator = np.sum(np.power(P - O, 2))
+        denominator = np.sum(np.power(np.absolute(P - O_) + np.absolute(O - O_), 2))
+        if denominator == 0:
+            return 0.0
+        
+        return 1 - numerator / denominator
+    except Exception as e:
         return 0.0
-    
-    return 1 - numerator / denominator
 
 
 def scores(metric: Union[str, MyGowerMetric], data: Data, name: str, labeled: bool, task: str, random_state: int = 0):
