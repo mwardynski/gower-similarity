@@ -1,6 +1,7 @@
 import os.path
 import os
 import shutil
+import time
 from os import listdir
 from os.path import isfile
 from typing import Union
@@ -327,6 +328,7 @@ def calc_ranks():
 
 
 if __name__ == '__main__':
+    start = time.time()
     delete_previous_results()
     create_results_dir()
     # calc_ranks()
@@ -427,3 +429,4 @@ if __name__ == '__main__':
                             mutual, knn_score, f1)
 
     print("Completed ... 100%")
+    print(f"Time elapsed: {time.time() - start:.2f}s")
