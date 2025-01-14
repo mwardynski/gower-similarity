@@ -89,9 +89,8 @@ def delete_previous_results():
         shutil.rmtree("./results")
 
 def fill_na(data: np.array):
-    data[data == ""] = -1
-    data[data == "?"] = -1
-    data[data == "NA"] = -1
+    null_mask = pd.isnull(data) | (data == "") | (data == "?") | (data == "NA") | (data == "N/A") | (data == "nan") | (data == "NaN") | (data == " ")
+    data[null_mask] = -1
     return data
 
 
@@ -101,12 +100,12 @@ def cpcc(X, Z):
 
 def ioa(O, P):
     O_ = np.average(O)
-    return 1 - np.sum(np.power(P - O, 2)) / np.sum(
-        np.power(
-            np.absolute(P - O_) + np.absolute(O - O_),
-            2,
-        )
-    )
+    numerator = np.sum(np.power(P - O, 2))
+    denominator = np.sum(np.power(np.absolute(P - O_) + np.absolute(O - O_), 2))
+    if denominator == 0:
+        return 0.0
+    
+    return 1 - numerator / denominator
 
 
 def scores(metric: Union[str, MyGowerMetric], data: Data, name: str, labeled: bool, task: str, random_state: int = 0):
@@ -170,31 +169,32 @@ def scores(metric: Union[str, MyGowerMetric], data: Data, name: str, labeled: bo
             return -1, -1, -1, -1, -1, -1, -1, -1
 
     if task == "hierarchical":
-        Z = linkage(df, method="average", metric=metric)
+        try:
+            Z = linkage(df, method="average", metric=metric)
 
-        num_of_clusters = (
-            metric.number_of_clusters_
-            if isinstance(metric, MyGowerMetric) and metric.number_of_clusters_ is not None
-            else 3
-        )
+            num_of_clusters = (
+                metric.number_of_clusters_
+                if isinstance(metric, MyGowerMetric) and metric.number_of_clusters_ is not None
+                else 3
+            )
 
-        dist_x = pdist(df, metric=metric)
+            dist_x = pdist(df, metric=metric)
 
-        pred_labels = fcluster(Z, t=num_of_clusters, criterion="maxclust")
+            pred_labels = fcluster(Z, t=num_of_clusters, criterion="maxclust")
 
-        c, cophenetic_distances = cpcc(dist_x, Z)
-        i = ioa(dist_x, cophenetic_distances)
-        knn_score, f1 = None, None
+            c, cophenetic_distances = cpcc(dist_x, Z)
+            i = ioa(dist_x, cophenetic_distances)
+            knn_score, f1 = None, None
 
-        if np.max(pred_labels) < 1:
-            print("Predicted labels = 1!")
+            if np.max(pred_labels) < 1:
+                print("Predicted labels = 1!")
+                return -1, -1, -1, -1, -1, -1, -1, -1
+        except Exception as e:
+            print(f"Error with hierarchical clustering, metric: {metric}")
+            print(e)
             return -1, -1, -1, -1, -1, -1, -1, -1
 
     elif task == "knn":
-        # if np.isnan(df).any():
-        #     imputer = SimpleImputer(strategy='mean')
-        #     df = imputer.fit_transform(df)
-
         X_train, X_test, y_train, y_test = train_test_split(
             df, y, test_size=0.2
         )
