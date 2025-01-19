@@ -1,5 +1,45 @@
 # GowerMetric
+
+## Introduction
+Distance quantifies how far apart two objects are and is synonymous with dissimilarity. Calculating distance between individuals or groups is essential in fields like biology, psychology, ecology, medical diagnosis, and agriculture. It also underpins statistical methods like discriminant analysis, classification, and clustering, as well as machine learning algorithms such as k-nearest neighbor (supervised learning) and k-means clustering (unsupervised learning).
+
+Euclidean distance is the standard measure for continuous variables, while the simple matching coefficient is common for categorical ones. However, real-world data often combines continuous and categorical variables (mixed data). Although extensive research exists for either continuous or categorical data, mixed data poses challenges. Researchers often either treat categorical data as continuous or transform continuous data into categorical, both of which can result in information loss.
+
+To preserve data integrity, tailored formulas for mixed data types are necessary and one of them is Gower's similarity.
+
 Implementation of Gower's Metric in Python.
+
+## Gower characteristics
+
+In 1971, Gower introduced a general similarity coefficient that encompasses several existing measures as special cases, making it adaptable to various scenarios.
+
+Two individuals, $i$ and $j$, can be compared on a variable $k$ and assigned a score $s_{ijk}$​. The similarity between $i$ and $j$ is calculated as the weighted average of these scores across all comparisons:
+
+$$
+S_{ij} = \frac{\sum_{k=1}^{p} s_{ijk}\delta_{ijk}}{\sum_{k=1}^{p} \delta_{ijk}}
+$$
+
+Let $\delta_{ijk}$​ represent the possibility of making a comparison. Specifically, $\delta_{ijk} = 1$ when variable $k$ can be compared for individuals $i$ and $j$, meaning no missing values exist for both.
+
+The Gower's distance can by calculated in the following way: $d_{ij} = 1 - S_{ij}$, and the scores $s_{ijk}$ as follows:
+
+#### Binary symmetric data:
+
+$s_{ijk} = 1$ if $x_{ik} = x_{jk}$, $0$ otherwise.
+
+#### Binary asymmetric data:
+
+$s_{ijk} = 1$ if $x_{ik} = x_{jk} = 1$, $0$ otherwise.
+
+#### Ratio scale
+
+$s_{ijk} = 1 - \frac{|x_{ik} - x_{jk}|}{R_{k}}$, where $R_k = max(x_k) - min(x_k)$
+
+#### Categorical nominal
+
+$s_{ijk} = 1$, if variable $i$ equals to variable $j$ at $k$-th element, $0$ otherwise.
+
+Additionaly, Gower proposed the inclusion of weights in the similarity coefficient.
 
 ## How to install
 
