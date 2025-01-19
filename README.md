@@ -41,6 +41,28 @@ $s_{ijk} = 1$, if variable $i$ equals to variable $j$ at $k$-th element, $0$ oth
 
 Additionaly, Gower proposed the inclusion of weights in the similarity coefficient.
 
+## Metric enhancements
+
+### Ordinal variables
+
+The basic implementation of Gower’s distance does not account for ordinal variables. To address this, we can use the solution proposed by Podani in 1999.
+
+$s_{ijk} = 1$ if $r_{ik} = r_{jk}$, otherwise:
+
+
+$$s_{ijk} = 1 - \frac{r_{ik} - r_{jk} - \frac{T_{ik} - 1}{2} - \frac{T_{jk} - 1}{2}}{max(r_k) - min(r_k) - \frac{T_{max,k} - 1}{2} - \frac{T_{min,k} - 1}{2}}$$
+
+$r_{ik}$ - rank of attribute $k$ at element $i$,  
+$T_{ik}$ - the cardinality of elements with equel rank score to elament $i$ at the attribute $k$
+
+Example of calculating rankings and cardinalities:
+
+| Variable's value       | 1   | 2 | 1   | 4 | 1   | 2 | 2 | 1   |
+|------------------------|-----|---|-----|---|-----|---|---|-----|
+| Variable's rank        | 2.5 | 6 | 2.5 | 8 | 2.5 | 6 | 6 | 2.5 |
+| T - rank's cardinality | 4   | 3 | 4   | 1 | 4   | 3 | 3 | 4   |
+
+
 ## How to install
 
 For now, the easiest way to get library is to clone the repository locally:
