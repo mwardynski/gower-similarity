@@ -1,0 +1,46 @@
+name: Tests & checks
+
+on:
+  pull_request:
+  workflow_dispatch: # allow running manually from the Actions tab
+
+# cancel previous runs on a new commit
+concurrency:
+  group: ${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    strategy:
+      fail-fast: true
+      matrix:
+        python-version: ["3.12"]
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install poetry
+        run: pipx install poetry --python python${{ matrix.python-version }}
+
+      - uses: actions/cache@v3
+        name: Define a venv cache
+        with:
+          path: ./.venv
+          key: ${{ matrix.os }}-venv-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install the project dependencies
+        run:  |
+            export PATH="$HOME/.local/bin:$PATH"
+            poetry sync
+
+
+      - name: Run tests with pytest
+        run: |
+            export PATH="$HOME/.local/bin:$PATH"
+            poetry run pytest tests/UnitTestsGowerMetric.py

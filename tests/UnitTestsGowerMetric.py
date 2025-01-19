@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.preprocessing import OrdinalEncoder
 from scipy.spatial.distance import pdist, squareform
 
-from GowerMetric import MyGowerMetric
+from gowermetric.GowerMetric import MyGowerMetric
 from utils import DataType
 
 import pandas as pd
