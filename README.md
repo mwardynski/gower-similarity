@@ -1,6 +1,21 @@
 # GowerMetric
 Implementation of Gower's Metric in Python.
-  
+
+## How to install
+
+For now, the easiest way to get library is to clone the repository locally:
+```bash
+git clone https://github.com/mwardynski/gower-similarity.git
+```
+
+### Basic usage
+
+In order to import class, which calculate Gower's metric, you need to import it as follows:
+```python
+from gowermetric.GowerMetric import MyGowerMetric
+```
+
+
 ## Results for metrics comparison
 
 Primary, we have focus on the comparison of the Gower's metric with the other metrics. Only three datasets files were used: adult.csv, car_insurance_csv and diabetes.csv. We have used [kNN](https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html), [hierarchical clustering](https://docs.scipy.org/doc/scipy-1.15.0/reference/cluster.hierarchy.html) and [HDBSCAN](https://pypi.org/project/hdbscan/) algorithms. As background for hiperparameters improvement, we have used [optuna](https://optuna.org) framework. The results are shown in the following tables.
@@ -111,9 +126,3 @@ Primary, we have focus on the comparison of the Gower's metric with the other me
 | Minkowski  | **0.5583** | **0.0346** | 0.6524| **0.0221** |
 | Dice       | 0.5006 | 0.0020   | 0.5415| 0.0013 |
 | Jaccard    | 0.5003 | 0.0026   | 0.5438| 0.0017 |
-
-## Datasets for testing:
-https://drive.google.com/drive/folders/16_VCVOaOOnhilUJkSn6CaLpumHMzd7D-?usp=share_link
-
-## Run pytest
-Please feel free to run `pytest -v` from main repo root dir
