@@ -31,11 +31,9 @@ jobs:
 
       - name: Install the project dependencies
         run:  |
-            export PATH="$HOME/.local/bin:$PATH"
             poetry sync
 
 
       - name: Run tests with pytest
         run: |
-            export PATH="$HOME/.local/bin:$PATH"
             poetry run pytest tests/UnitTestsGowerMetric.py
