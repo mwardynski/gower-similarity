@@ -2,12 +2,7 @@ name: Tests & checks
 
 on:
   push:
-  workflow_dispatch: # allow running manually from the Actions tab
-
-# cancel previous runs on a new commit
-concurrency:
-  group: ${{ github.head_ref }}
-  cancel-in-progress: true
+  workflow_dispatch:
 
 jobs:
   ci:
