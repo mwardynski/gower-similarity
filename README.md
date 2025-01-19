@@ -62,13 +62,36 @@ Example of calculating rankings and cardinalities:
 | Variable's rank        | 2.5 | 6 | 2.5 | 8 | 2.5 | 6 | 6 | 2.5 |
 | T - rank's cardinality | 4   | 3 | 4   | 1 | 4   | 3 | 3 | 4   |
 
-### Radio scale improvements
+### Ratio scale improvements
 
 #### Outliers compensation
 Problem: Outliers in numerical variables affect their contribution to the overall dissimilarity.  
 Solution: replace $R_k$ with $IQR_k$, which is the Inter-Quartile Range (P75% - P25%), or even Inter-Decile  
 
-$s_{ijk} = 1 - \frac{|x_{ik} - x_{jk}|}{IQR_{k}}$ if $|x_{ik} - x_{jk}| < IQR_{k}$, otherwise $s_{ijk} = 0$
+$s_{ijk} = 1 - \frac{|x_{ik} - x_{jk}|}{IQR_{k}}$ if $|x_{ik} - x_{jk}| < IQR_{k}$,
+
+otherwise $s_{ijk} = 0$
+
+#### Categorical variables dominance reduction
+Problem: The Gower distance tends to treat units with the same categorical values as closer, giving less importance to the distance on ratio scaled variables.  
+Solution: Discretizing the ratio scaled variables, preferring non-fixed discretization scheme, like *Kernel Density Estimation*.  
+
+Two observations within the same moving "window" will have the similarity of 1, whereas for units where one or both fall outside the window, the similarity will be computed as usual:
+
+$s_{ijk} = 1$ if $|x_{ik} - x_{jk}| \leq h_k$, otherwise:  
+$s_{ijk} = \frac{|x_{ik} - x_{jk}|}{g_k}$, if $h_k < |x_{ik} - x_{jk}| < g_k$, or  
+$s_{ijk} = 0$, if $|x_{ik} - x_{jk}| \geq g_k$
+
+Where:
+- $g_k$ can be the discussed previously $IQR_k$, or just the range of values at position $k$,
+- $h_k$ is the KDE's bandwidth which can be estimated by following methods:
+    - Silverman: $h_k = \frac{c}{\sqrt[5]{n}}min(std_k, \frac{IQR_k}{1.34})$
+    - Scott: $h_k = \frac{c}{\sqrt[5]{n}}std_k$
+    - Sheather-Jones minimizes asymptotic MEAN Integrated Square Error: $MISE(h) = E\int(\hat{f}(x;h) - f(x))^2dx$
+
+Besides one can find the best fitting values using Grid Search or Optuna framework.
+
+
 
 
 ## How to install
