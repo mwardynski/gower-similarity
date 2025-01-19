@@ -2,7 +2,7 @@ import numpy as np
 from sklearn.preprocessing import OrdinalEncoder
 from scipy.spatial.distance import pdist, squareform
 
-from gowermetric.GowerMetric import GowerMetric
+from gowermetric.GowerMetric import MyGowerMetric
 from utils import DataType
 
 import pandas as pd
@@ -33,7 +33,7 @@ def test_cat_nom():
             ],
         ]
     )
-    gower = GowerMetric(
+    gower = MyGowerMetric(
         np.array(
             [DataType.CATEGORICAL_NOMINAL for _ in range(data.shape[1])]
         )
@@ -63,7 +63,7 @@ def test_ratio():
     )
     # r: 13  3  2  3  2   7  22
     # d: 7/13 0 2/2 0 2/2 1/7 5/22
-    gower = GowerMetric(
+    gower = MyGowerMetric(
         np.array([DataType.RATIO_SCALE for _ in range(data.shape[1])])
     )
     gower.fit(data)
@@ -72,7 +72,7 @@ def test_ratio():
 
 def test_bin_asym():
     data = np.array([[1, 1, 0, 1, 1], [1, 0, 0, 0, 1]])
-    gower = GowerMetric(
+    gower = MyGowerMetric(
         np.array(
             [DataType.BINARY_ASYMMETRIC for _ in range(data.shape[1])]
         )
@@ -99,7 +99,7 @@ def test_weights():
     gower_weights = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     dist = np.array([2.45, 0.3, 23.0, 0.1, 8.0])
     ranges = np.array([17.04, 18.21, 567.0, 0.8, 32.0])
-    gower = GowerMetric(
+    gower = MyGowerMetric(
         dtypes=np.array([DataType.RATIO_SCALE for _ in range(data.shape[1])]),
         weights=gower_weights,
     )
@@ -122,7 +122,7 @@ def test_all_types():
     ranges = np.array([1, 29, 2, 15000, 1, 1, 1])
     dist = np.array([1, 29, 1, 10000, 0, 0, 0])
 
-    gower = GowerMetric(
+    gower = MyGowerMetric(
         dtypes=np.array(
             [DataType.CATEGORICAL_NOMINAL,
              DataType.RATIO_SCALE,
@@ -159,7 +159,7 @@ def test_negative_values():
          ]
     )
 
-    gower = GowerMetric(
+    gower = MyGowerMetric(
         dtypes=np.array([DataType.RATIO_SCALE for _ in range(data.shape[1])]),
     )
     dist = np.array([2.45, 0.3, 23.0, 0.1, 8.0])
@@ -193,7 +193,7 @@ def test_check_non_zero_on_diagonal():
         ]
     )
 
-    gower = GowerMetric(
+    gower = MyGowerMetric(
         dtypes=np.array(
             [DataType.CATEGORICAL_NOMINAL,
              DataType.CATEGORICAL_NOMINAL,
@@ -230,7 +230,7 @@ def test_nan_max_dist():
     ranges = np.array([1, 29, 2, 15000, 1, 1, 1])
     dist = np.array([1, 29, 1, 10000, 1, 0, 0])
 
-    gower = GowerMetric(
+    gower = MyGowerMetric(
         dtypes=np.array(
             [DataType.CATEGORICAL_NOMINAL,
              DataType.RATIO_SCALE,
@@ -277,7 +277,7 @@ def test_nan_raise():
     ranges = np.array([1, 29, 2, 15000, 1, 1, 1])
     dist = np.array([1, 29, 1, 10000, 0, 1, 1])
 
-    gower = GowerMetric(
+    gower = MyGowerMetric(
         dtypes=np.array(
             [DataType.CATEGORICAL_NOMINAL,
              DataType.RATIO_SCALE,
@@ -322,7 +322,7 @@ def test_nan_ignore():
     ranges = np.array([1, 29, 2, 15000, 1, 1, 1])
     dist = np.array([0, 29, 1, 10000, 0, 0, 0])
 
-    gower = GowerMetric(
+    gower = MyGowerMetric(
         dtypes=np.array(
             [DataType.CATEGORICAL_NOMINAL,
              DataType.RATIO_SCALE,
@@ -425,7 +425,7 @@ def test_numeric_intervals():
         [30]
     ], dtype=np.float64)
 
-    gower = GowerMetric(
+    gower = MyGowerMetric(
         dtypes=np.array([DataType.NUMERIC_INTERVAL])
     )
     gower.fit(data)
@@ -447,7 +447,7 @@ def test_numeric_intervals_advanced_no_weights():
         DataType.NUMERIC_INTERVAL,
         DataType.NUMERIC_INTERVAL
     ])
-    gower = GowerMetric(
+    gower = MyGowerMetric(
         dtypes=dtypes,
         nan_values_handling="ignore"
     )
