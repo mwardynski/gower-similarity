@@ -91,8 +91,21 @@ Where:
 
 Besides one can find the best fitting values using Grid Search or Optuna framework.
 
+### Weights optimization
 
+#### Cophenetic Correlation Coefficient (CPCC)
+The problem of finding the optimal weights is expressed as follows:
 
+How should one select the weights for Gower’s distance metric in order to optimize the Cophenetic Correlation Coefficient (CPCC) of the resulting hierarchical clustering?
+
+Implementation based on `scipy.cluster.hierarchy.cophenet`
+
+### Unknown values handling
+
+When a non-existing value is found, the implementation performs one of the following actions, depending on the user's choice:
+- raise an exception
+- omit the value
+- set it to the maximal distance
 
 ## How to install
 
