@@ -62,6 +62,14 @@ Example of calculating rankings and cardinalities:
 | Variable's rank        | 2.5 | 6 | 2.5 | 8 | 2.5 | 6 | 6 | 2.5 |
 | T - rank's cardinality | 4   | 3 | 4   | 1 | 4   | 3 | 3 | 4   |
 
+### Radio scale improvements
+
+#### Outliers compensation
+Problem: Outliers in numerical variables affect their contribution to the overall dissimilarity.  
+Solution: replace $R_k$ with $IQR_k$, which is the Inter-Quartile Range (P75% - P25%), or even Inter-Decile  
+
+$s_{ijk} = 1 - \frac{|x_{ik} - x_{jk}|}{IQR_{k}}$ if $|x_{ik} - x_{jk}| < IQR_{k}$, otherwise $s_{ijk} = 0$
+
 
 ## How to install
 
