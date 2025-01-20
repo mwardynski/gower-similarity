@@ -141,6 +141,34 @@ In order to import class, which calculate Gower's metric, you need to import it 
 from gowermetric.GowerMetric import MyGowerMetric
 ```
 
+then initialize passing the variable types:
+```python
+gower = MyGowerMetric(
+    dtypes=np.array(
+        [DataType.CATEGORICAL_NOMINAL,
+            DataType.CATEGORICAL_ORDINAL,
+            DataType.RATIO_SCALE,
+            DataType.RATIO_SCALE,
+            DataType.RATIO_SCALE,
+            DataType.BINARY_SYMMETRIC,
+            DataType.BINARY_SYMMETRIC,
+            DataType.BINARY_ASYMMETRIC]
+    ),
+    nan_values_handling="max_dist"
+)
+```
+
+fit it to the data:
+```python
+gower.fit(data)
+```
+
+and finally run for two samples from the dataset:
+```python
+res = gower(data[2], data[4])
+```
+
+[HINT] To calculate the pairwise distances for the entire dataset, you can use an auxiliary function, like: `scipy.spatial.distance.pdist` or `sklearn.metrics.pairwise.pairwise_distances`.
 
 ## Results for metrics comparison
 
