@@ -98,7 +98,27 @@ The problem of finding the optimal weights is expressed as follows:
 
 How should one select the weights for Gower’s distance metric in order to optimize the Cophenetic Correlation Coefficient (CPCC) of the resulting hierarchical clustering?
 
-Implementation based on `scipy.cluster.hierarchy.cophenet`
+Implementation based on `scipy.cluster.hierarchy.cophenet` which uses the formula:
+
+$$C = \frac{\sum_{i<j}(x(i,j)-\bar{x})(t(i,j)-\bar{t})}{\sqrt{(\sum_{i<j}(x(i,j)-\bar{x})^2)(\sum_{i<j}(t(i,j)-\bar{t})^2)}}$$
+
+where:  
+$x(i,j)$ - Gower's distance between values at $i$ and $j$, with the global mean equals to $\bar{x}$  
+$t(i,j)$ - cophenetic distance between values at $i$ and $j$, with the global meane equalts to $\bar{t}$
+
+CPCC is differentiable, hence it's optimized using *L-BFGS-B*
+
+#### Index of Agreement (IoA)
+
+Shows how accurate a model fits the actual data
+
+$$IoA = 1 - \frac{\sum_{i=1}^n(O_i-P_i)^2}{\sum_{i=1}^n(|P_i - \bar{O}| + |O_i - \bar{O}|)^2}$$
+
+where:  
+$P_i$ - predicted value of $i$, in our case Gower's distance  
+$O_i$ - observed value of $i$, in our case cophenetic distance from hierarchical clustering  
+$\bar{O}$ - mean of observed values  
+$n$ - number of observations
 
 ### Unknown values handling
 
