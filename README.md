@@ -100,7 +100,7 @@ How should one select the weights for Gower’s distance metric in order to opti
 
 Implementation based on `scipy.cluster.hierarchy.cophenet` which uses the formula:
 
-$$C = \frac{\sum_{i<j}(x(i,j)-\bar{x})(t(i,j)-\bar{t})}{\sqrt{(\sum_{i<j}(x(i,j)-\bar{x})^2)(\sum_{i<j}(t(i,j)-\bar{t})^2)}}$$
+$C = \frac{\sum_{i<j}(x(i,j)-\bar{x})(t(i,j)-\bar{t})}{\sqrt{(\sum_{i<j}(x(i,j)-\bar{x})^2)(\sum_{i<j}(t(i,j)-\bar{t})^2)}}$
 
 where:  
 $x(i,j)$ - Gower's distance between values at $i$ and $j$, with the global mean equals to $\bar{x}$  
