@@ -287,3 +287,7 @@ Primary, we have focus on the comparison of the Gower's metric with the other me
 | minkowski | **0.5480**     | 0.0189           | **0.6718**     | 0.0089         |
 | dice      | 0.5003         | 0.0035           | 0.5466         | 0.0022         |
 | jaccard   | 0.5068         | 0.0013           | 0.5525         | 0.0009         |
+
+#### Suggested results interpretation
+
+As shown above, custom Gower metric implementation outperforms another algorithms only for one dataset in kNN algorithm. However, that does not mean it is worse. One should ask the question, if getting closer to max possible value is the best idea. Downside of this approach might be clusters created where there should not be any. The best approach is to use the metric that fits the best to the problem, and the results above show that Gower's metric is a good choice for as much mix type data as possible.
