@@ -219,8 +219,8 @@ Primary, we have focus on the comparison of the Gower's metric with the other me
 #### Adult Dataset
 | Metric    | Rand           | Complete         | F-M            | Mutual         | CPCC           | IOA            |
 |-----------|----------------|------------------|----------------|----------------|----------------|----------------|
-| gower     | 0.6333         | 0.0399           | 0.7948         | 0.0007         | 0.7162         | **0.8187**     |
-| euclidean | 0.6341         | 0.0184           | 0.7947         | 0.0005         | **0.7719**     | 0.8599         |
+| gower     | 0.6333         | 0.0399           | 0.7948         | 0.0007         | **0.7162**     | **0.8187**     |
+| euclidean | 0.6341         | 0.0184           | 0.7947         | 0.0005         | 0.7719         | 0.8599         |
 | cosine    | 0.6353         | 0.1966           | 0.7930         | 0.0103         | 0.9103         | 0.9509         |
 | minkowski | 0.6237         | **0.0045**       | 0.7858         | **0.0002**     | 0.7851         | 0.8702         |
 | dice      | **0.5900**     | 0.0195           | **0.7421**     | 0.0043         | 0.8598         | 0.9211         |
@@ -292,6 +292,8 @@ Suggested results interpretation
 
 Each of the analyzed datasets contains different types of data. For example, the adult.csv dataset includes both ratio and categorical data. On the other hand, diabetes.csv consists solely of numeric data, while car_insurance.csv incorporates an additional type: binary variables. Additionally, all data files have been labeled accordingly to facilitate analysis.
 
-As demonstrated in the results, the custom Gower metric implementation achieves the lowest values (indicating better performance) only for the Car Insurance Claim Dataset in the kNN algorithm. However, this does not imply that the Gower metric is inherently the best for all scenarios. One should consider whether minimizing the metric value always translates to the most meaningful clustering or classification results. Over-reliance on achieving minimal distance values might lead to an over-clustering effect, identifying patterns where none should exist.
+As demonstrated by the results, the custom Gower metric implementation achieves the highest performance in hierarchical clustering, as optimized by CPCC and IoA. This indicates that optimizing the weights yields superior scores, despite significant effort being invested in balancing variable importance without weight adjustments. However, it is important to note that weight optimization must be repeated following any changes to the dataset or when selecting a different subset of features.
+
+However, this does not imply that the Gower metric is inherently the best for all scenarios. One should consider whether minimizing the metric value always translates to the most meaningful clustering or classification results. Over-reliance on achieving minimal distance values might lead to an over-clustering effect, identifying patterns where none should exist.
 
 Thus, the best approach is to select a distance metric that best aligns with the specific problem at hand.
