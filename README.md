@@ -183,9 +183,9 @@ Primary, we have focus on the comparison of the Gower's metric with the other me
 |-----------|-------------|-----------|
 | gower     | 0.7840      | 0.7759    |
 | euclidean | 0.7780      | 0.7432    |
-| cosine    | **0.7950**  | **0.7886**|
-| minkowski | 0.7490      | 0.7050    |
-| dice      | 0.7270      | 0.7418    |
+| cosine    | 0.7950      | 0.7886    |
+| minkowski | 0.7490      | **0.7050**|
+| dice      | **0.7270**  | 0.7418    |
 | jaccard   | 0.7450      | 0.7620    |
 
 ---
@@ -193,12 +193,12 @@ Primary, we have focus on the comparison of the Gower's metric with the other me
 #### Car Insurance Claim Dataset
 | Metric    | KNN Score   | F1        |
 |-----------|-------------|-----------|
-| gower     | **0.7420**  | **0.7278**|
+| gower     | 0.7420      | 0.7278    |
 | euclidean | 0.7060      | 0.6675    |
 | cosine    | 0.7000      | 0.6643    |
-| minkowski | 0.6980      | 0.6586    |
+| minkowski | 0.6980      | **0.6586**|
 | dice      | 0.7270      | 0.6999    |
-| jaccard   | 0.6940      | 0.6922    |
+| jaccard   | **0.6940**  | 0.6922    |
 
 ---
 
@@ -208,9 +208,9 @@ Primary, we have focus on the comparison of the Gower's metric with the other me
 | gower     | 0.6883       | 0.6272    |
 | euclidean | 0.6883       | 0.6839    |
 | cosine    | 0.7208       | 0.7202    |
-| minkowski | **0.7727**   | **0.7733**|
+| minkowski | 0.7727       | 0.7733    |
 | dice      | 0.6558       | 0.5195    |
-| jaccard   | 0.6039       | 0.4548    |
+| jaccard   | **0.6039**   | **0.4548**|
 
 ---
 
@@ -219,34 +219,34 @@ Primary, we have focus on the comparison of the Gower's metric with the other me
 #### Adult Dataset
 | Metric    | Rand           | Complete         | F-M            | Mutual         | CPCC           | IOA            |
 |-----------|----------------|------------------|----------------|----------------|----------------|----------------|
-| gower     | 0.6333         | 0.0399           | 0.7948         | 0.0007         | 0.7162         | 0.8187         |
-| euclidean | 0.6341         | 0.0184           | 0.7947         | 0.0005         | 0.7719         | 0.8599         |
-| cosine    | 0.6353         | **0.1966**       | 0.7930         | **0.0103**     | **0.9103**     | **0.9509**     |
-| minkowski | 0.6237         | 0.0045           | 0.7858         | 0.0002         | 0.7851         | 0.8702         |
-| dice      | 0.5900         | 0.0195           | 0.7421         | 0.0043         | 0.8598         | 0.9211         |
-| jaccard   | **0.6402**     | 0.0295           | **0.7998**     | 0.0002         | 0.8700         | 0.9276         |
+| gower     | 0.6333         | 0.0399           | 0.7948         | 0.0007         | 0.7162         | **0.8187**     |
+| euclidean | 0.6341         | 0.0184           | 0.7947         | 0.0005         | **0.7719**     | 0.8599         |
+| cosine    | 0.6353         | 0.1966           | 0.7930         | 0.0103         | 0.9103         | 0.9509         |
+| minkowski | 0.6237         | **0.0045**       | 0.7858         | **0.0002**     | 0.7851         | 0.8702         |
+| dice      | **0.5900**     | 0.0195           | **0.7421**     | 0.0043         | 0.8598         | 0.9211         |
+| jaccard   | 0.6402         | 0.0295           | 0.7998         | **0.0002**     | 0.8700         | 0.9276         |
 
 ---
 
 #### Car Insurance Claim Dataset
 | Metric    | Rand           | Complete         | F-M            | Mutual         | CPCC           | IOA            |
 |-----------|----------------|------------------|----------------|----------------|----------------|----------------|
-| gower     | 0.6096         | 0.0350           | 0.7691         | 0.0041         | 0.5539         | 0.6777         |
-| euclidean | 0.4712         | 0.0003           | 0.4740         | 0.0003         | 0.6112         | 0.7316         |
-| cosine    | **0.6140**     | **0.1100**       | **0.7833**     | 0.0006         | 0.6354         | 0.7523         |
-| minkowski | 0.4680         | 0.0003           | 0.4639         | 0.0003         | 0.6306         | 0.7476         |
-| dice      | 0.5962         | 0.0299           | 0.7149         | **0.0117**     | 0.6329         | 0.7523         |
-| jaccard   | 0.6098         | 0.0193           | 0.7796         | 0.0004         | **0.6394**     | **0.7564**     |
+| gower     | 0.6096         | 0.0350           | 0.7691         | 0.0041         | **0.5539**     | **0.6777**      |
+| euclidean | 0.4712         | **0.0003**       | 0.4740         | **0.0003**     | 0.6112         | 0.7316         |
+| cosine    | 0.6140         | 0.1100           | 0.7833         | 0.0006         | 0.6354         | 0.7523         |
+| minkowski | **0.4680**     | **0.0003**       | **0.4639**     | **0.0003**     | 0.6306         | 0.7476         |
+| dice      | 0.5962         | 0.0299           | 0.7149         | 0.0117         | 0.6329         | 0.7523         |
+| jaccard   | 0.6098         | 0.0193           | 0.7796         | 0.0004         | 0.6394         | 0.7564         |
 
 ---
 
 #### Diabetes Dataset
 | Metric    | Rand           | Complete         | F-M            | Mutual         | CPCC           | IOA            |
 |-----------|----------------|------------------|----------------|----------------|----------------|----------------|
-| gower     | 0.5371         | 0.0077           | **0.6928**     | 0.0021         | 0.6359         | 0.7490         |
-| euclidean | **0.5530**     | **0.0318**       | 0.6903         | **0.0103**     | **0.8456**     | **0.9105**     |
-| cosine    | 0.4994         | 0.0007           | 0.5186         | 0.0005         | 0.7340         | 0.8320         |
-| minkowski | **0.5530**     | **0.0318**       | 0.6903         | **0.0103**     | **0.8456**     | **0.9105**     |
+| gower     | 0.5371         | 0.0077           | 0.6928         | 0.0021         | **0.6359**     | **0.7490**     |
+| euclidean | 0.5530         | 0.0318           | 0.6903         | 0.0103         | 0.8456         | 0.9105         |
+| cosine    | **0.4994**     | **0.0007**       | **0.5186**     | **0.0005**     | 0.7340         | 0.8320         |
+| minkowski | 0.5530         | 0.0318           | 0.6903         | 0.0103         | 0.8456         | 0.9105         |
 | dice      | 0.5455         | 1.0000           | 0.7386         | 0.0000         | 0.0000         | 0.0000         |
 | jaccard   | 0.5455         | 1.0000           | 0.7386         | 0.0000         | 0.0000         | 0.0000         |
 
@@ -258,10 +258,10 @@ Primary, we have focus on the comparison of the Gower's metric with the other me
 | Metric    | Rand           | Complete         | F-M            | Mutual         |
 |-----------|----------------|------------------|----------------|----------------|
 | gower     | 0.3983         | 0.0277           | 0.2850         | 0.0963         |
-| euclidean | 0.3701         | 0.0127           | 0.1748         | 0.0596         |
-| cosine    | **0.5075**     | 0.0316           | **0.5421**     | 0.0436         |
-| minkowski | 0.3674         | 0.0131           | 0.1781         | 0.0618         |
-| dice      | 0.4260         | **0.0507**       | 0.3718         | **0.1081**     |
+| euclidean | 0.3701         | **0.0127**       | **0.1748**     | 0.0596         |
+| cosine    | 0.5075         | 0.0316           | 0.5421         | **0.0436**     |
+| minkowski | **0.3674**     | 0.0131           | 0.1781         | 0.0618         |
+| dice      | 0.4260         | 0.0507           | 0.3718         | 0.1081         |
 | jaccard   | 0.4186         | 0.0476           | 0.3725         | 0.0890         |
 
 ---
@@ -270,28 +270,28 @@ Primary, we have focus on the comparison of the Gower's metric with the other me
 | Metric    | Rand           | Complete         | F-M            | Mutual         |
 |-----------|----------------|------------------|----------------|----------------|
 | gower     | 0.5837         | 0.0104           | 0.6968         | 0.0064         |
-| euclidean | 0.4653         | 0.0085           | **0.7806**     | 0.0218         |
-| cosine    | **0.6077**     | 0.0095           | 0.7621         | 0.0016         |
-| minkowski | 0.4729         | 0.0076           | 0.4812         | 0.0193         |
-| dice      | 0.3972         | 0.0198           | 0.1298         | 0.0881         |
-| jaccard   | 0.3945         | **0.0211**       | 0.1310         | **0.0931**     |
+| euclidean | 0.4653         | 0.0085           | 0.7806         | 0.0218         |
+| cosine    | 0.6077         | 0.0095           | 0.7621         | **0.0016**     |
+| minkowski | 0.4729         | **0.0076**       | 0.4812         | 0.0193         |
+| dice      | 0.3972         | 0.0198           | **0.1298**     | 0.0881         |
+| jaccard   | **0.3945**     | 0.0211           | 0.1310         | **0.0931**     |
 
 ---
 
 #### Diabetes Dataset
 | Metric    | Rand           | Complete         | F-M            | Mutual         |
 |-----------|----------------|------------------|----------------|----------------|
-| gower     | 0.4996         | 0.0006           | 0.5205         | 0.0004         |
-| euclidean | 0.5472         | **0.0193**       | 0.6705         | **0.0091**     |
-| cosine    | 0.4848         | 0.0064           | 0.4190         | 0.0087         |
-| minkowski | **0.5480**     | 0.0189           | **0.6718**     | 0.0089         |
+| gower     | 0.4996         | **0.0006**       | 0.5205         | **0.0004**     |
+| euclidean | 0.5472         | 0.0193           | 0.6705         | 0.0091         |
+| cosine    | **0.4848**     | 0.0064           | **0.4190**     | 0.0087         |
+| minkowski | 0.5480         | 0.0189           | 0.6718         | 0.0089         |
 | dice      | 0.5003         | 0.0035           | 0.5466         | 0.0022         |
 | jaccard   | 0.5068         | 0.0013           | 0.5525         | 0.0009         |
 
-#### Suggested results interpretation
+Suggested results interpretation
 
 Each of the analyzed datasets contains different types of data. For example, the adult.csv dataset includes both ratio and categorical data. On the other hand, diabetes.csv consists solely of numeric data, while car_insurance.csv incorporates an additional type: binary variables. Additionally, all data files have been labeled accordingly to facilitate analysis.
 
-As shown in the results, the custom Gower metric implementation outperforms other distance measures only for the Car Insurance Claim Dataset in the kNN algorithm. However, this does not imply that the Gower metric is inherently worse. One should consider whether achieving the highest possible accuracy is always the optimal goal. In some cases, prioritizing high accuracy might lead to overfitting and the creation of clusters where there should not be any. Therefore, the best approach is to select a distance metric that best aligns with the specific problem at hand.
+As demonstrated in the results, the custom Gower metric implementation achieves the lowest values (indicating better performance) only for the Car Insurance Claim Dataset in the kNN algorithm. However, this does not imply that the Gower metric is inherently the best for all scenarios. One should consider whether minimizing the metric value always translates to the most meaningful clustering or classification results. Over-reliance on achieving minimal distance values might lead to an over-clustering effect, identifying patterns where none should exist.
 
-The results indicate that Gower’s metric is a strong candidate for datasets containing mixed data types, as it effectively preserves information across different variable scales and types. However, when dealing with predominantly ratio scaled data (e.g., diabetes.csv), other metrics such as Euclidean, Cosine, or Minkowski may perform better due to their inherent mathematical properties, which align well with numerical distance calculations.
+Thus, the best approach is to select a distance metric that best aligns with the specific problem at hand.
