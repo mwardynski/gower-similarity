@@ -228,7 +228,7 @@ def test_nan_max_dist():
     # ranges: 29, 2, 15000
     # dist: 1, 29, 1, 10000, 1, 0, 0
     ranges = np.array([1, 29, 2, 15000, 1, 1, 1])
-    dist = np.array([1, 29, 1, 10000, 1, 0, 0])
+    dist = np.array([1, 29, 1, 10000, 0, 1, 1])
 
     gower = MyGowerMetric(
         dtypes=np.array(

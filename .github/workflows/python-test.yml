@@ -34,4 +34,4 @@ jobs:
 
       - name: Run tests with pytest
         run: |
-            poetry run pytest tests/UnitTestsGowerMetric.py
+            poetry run pytest tests/UnitTestsGowerMetric.py tests/test_metrics.py
