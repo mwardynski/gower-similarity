@@ -170,6 +170,8 @@ res = gower(data[2], data[4])
 
 [HINT] To calculate the pairwise distances for the entire dataset, you can use an auxiliary function, like: `scipy.spatial.distance.pdist` or `sklearn.metrics.pairwise.pairwise_distances`.
 
+[HINT_2] Inside `utils.py` file, you can find a function that helps to convert the dataset to the format that can be used by the `MyGowerMetric` class.
+
 ## Results for metrics comparison
 
 Primary, we have focus on the comparison of the Gower's metric with the other metrics. Only three datasets files were used: adult.csv, car_insurance_csv and diabetes.csv. We have used [kNN](https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html), [hierarchical clustering](https://docs.scipy.org/doc/scipy-1.15.0/reference/cluster.hierarchy.html) and [HDBSCAN](https://pypi.org/project/hdbscan/) algorithms. As background for hiperparameters improvement, we have used [optuna](https://optuna.org) framework. The results are shown in the following tables.
@@ -252,6 +254,11 @@ Primary, we have focus on the comparison of the Gower's metric with the other me
 
 ---
 
+Note: Using Mutual, CPCC and IOA metrics, if results are equal to 0.0000, it means that the algorithm did not finish the calculations due to
+numerical problems.
+
+---
+
 ### - HDBSCAN
 
 #### Adult Dataset
@@ -274,7 +281,7 @@ Primary, we have focus on the comparison of the Gower's metric with the other me
 | cosine    | 0.6077         | 0.0095           | 0.7621         | **0.0016**     |
 | minkowski | 0.4729         | **0.0076**       | 0.4812         | 0.0193         |
 | dice      | 0.3972         | 0.0198           | **0.1298**     | 0.0881         |
-| jaccard   | **0.3945**     | 0.0211           | 0.1310         | **0.0931**     |
+| jaccard   | **0.3945**     | 0.0211           | 0.1310         | 0.0931         |
 
 ---
 
